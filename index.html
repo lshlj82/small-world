@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Small-World Effect: An Interactive Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+:root{
+  --paper:#EDF2F5; --sheet:#F9FBFC; --ink:#1B2A3A; --muted:#566676; --grid:#D2DDE5; --grid-minor:#E3EAF0;
+  --er:#2F8A4C; --sf:#6A3D9E; --hub:#D21F3C; --node:#2C5F8E; --path:#C8700A; --edge:rgba(27,42,58,.22); --focus:#1F6FB2;
+  --display:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1A24; --sheet:#152330; --ink:#E2E9EF; --muted:#94A4B3; --grid:#2A3B4A; --grid-minor:#1E2D3A;
+    --er:#5FC07B; --sf:#B591E6; --hub:#FF5C6C; --node:#7DB0E0; --path:#F2A23A; --edge:rgba(226,233,239,.2); --focus:#E8C46A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1A24; --sheet:#152330; --ink:#E2E9EF; --muted:#94A4B3; --grid:#2A3B4A; --grid-minor:#1E2D3A;
+  --er:#5FC07B; --sf:#B591E6; --hub:#FF5C6C; --node:#7DB0E0; --path:#F2A23A; --edge:rgba(226,233,239,.2); --focus:#E8C46A; color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0; background:var(--paper); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.6;
+  background-image:
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size:24px 24px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 20px}
+h1,h2,h3{font-family:var(--display); font-weight:600; line-height:1.15; margin:0; letter-spacing:-.01em}
+h1{font-size:clamp(42px,7.5vw,80px); letter-spacing:-.02em}
+.credit{font-size:14px; color:var(--muted); margin-top:10px}
+h2{font-size:clamp(28px,4.2vw,40px); margin-bottom:.4em}
+h3{font-size:21px; margin-bottom:.35em}
+p{margin:0 0 1em; max-width:68ch}
+.lede{font-size:18px; color:var(--muted); max-width:60ch}
+header{padding:56px 0 24px}
+section{padding:56px 0 8px}
+.sheet{background:var(--sheet); border:1px solid var(--grid); border-radius:6px; padding:18px}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+.hero-grid{display:grid; grid-template-columns:3fr 2fr; gap:18px; align-items:start}
+@media (max-width:780px){ .two, .hero-grid{grid-template-columns:1fr} }
+.note{font-size:14px; color:var(--muted); margin:0 0 10px}
+canvas{display:block; width:100%; max-width:100%}
+.netcv{aspect-ratio:1/1; cursor:crosshair; touch-action:none}
+.chart{aspect-ratio:4/3}
+.chart.wide{aspect-ratio:16/7}
+@media (max-width:780px){ .chart.wide{aspect-ratio:4/3} }
+.scroll{overflow-x:auto}
+.scroll svg.graph{min-width:620px}
+svg.graph{display:block; width:100%; height:auto; overflow:visible}
+svg.graph [data-n]{cursor:pointer}
+svg.graph [data-n]:focus{outline:none}
+svg.graph [data-n]:focus-visible circle.body{stroke:var(--focus); stroke-width:4}
+.controls{display:flex; flex-wrap:wrap; gap:18px 26px; align-items:end; margin:18px 0}
+.ctl{display:flex; flex-direction:column; gap:4px; font-size:14px; color:var(--muted); min-width:170px}
+.ctl output{color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums}
+input[type=range]{width:100%; accent-color:var(--sf)}
+select{font:inherit; font-size:15px; color:var(--ink); background:var(--sheet); border:1px solid var(--grid); border-radius:4px; padding:5px 8px}
+.check{flex-direction:row; align-items:center; gap:8px; min-width:0; color:var(--ink)}
+button{
+  font-family:var(--body); font-size:15px; font-weight:600; color:var(--sheet); background:var(--ink);
+  border:0; border-radius:4px; padding:9px 18px; cursor:pointer;
+}
+button:hover{background:var(--sf)}
+button:focus-visible, input:focus-visible, select:focus-visible, .seg input:focus-visible + span{outline:3px solid var(--focus); outline-offset:2px}
+.seg{display:inline-flex; border:1px solid var(--grid); border-radius:4px; background:var(--sheet); overflow:hidden}
+.seg label{position:relative; cursor:pointer}
+.seg input{position:absolute; opacity:0; inset:0; margin:0; cursor:pointer}
+.seg span{display:block; padding:6px 13px; font-size:15px; color:var(--ink); border-right:1px solid var(--grid)}
+.seg label:last-child span{border-right:0}
+.seg input:checked + span{background:var(--ink); color:var(--sheet)}
+.legend{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:14px; color:var(--muted); margin:6px 0 0}
+.legend > span{display:inline-flex; align-items:center; gap:6px}
+.swatch{display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:-1px}
+.line-key{display:inline-block; width:22px; height:0; border-top:3px solid currentColor}
+.line-key.dash{border-top-style:dashed}
+.callout{font-family:var(--display); font-size:21px; line-height:1.4; margin:14px 0 4px; max-width:46ch}
+.callout .num{color:var(--hub); font-weight:700}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+.chip{border:1.5px solid var(--grid); border-radius:999px; padding:3px 12px; font-size:14px; font-variant-numeric:tabular-nums; background:var(--sheet)}
+.chip.on{border-color:var(--hub); color:var(--hub)}
+.katex{font-size:1.1em}
+.formula.big{display:block; font-size:18px; margin:6px 0 16px; overflow-x:auto; overflow-y:hidden; padding:4px 0; max-width:100%}
+.formula.big .katex-display{margin:0}
+.formula.big .katex-display.fleqn > .katex{padding-left:0}
+.callout .katex, .legend .katex, .note .katex{font-size:1em}
+.tip{position:fixed; pointer-events:none; background:var(--ink); color:var(--sheet); font-size:13px; padding:3px 8px; border-radius:4px; opacity:0; transition:opacity .1s; z-index:5}
+.ranks{width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums}
+.ranks th{font-weight:500; color:var(--muted); text-align:left; padding:4px 6px 6px; border-bottom:1px solid var(--grid); vertical-align:bottom}
+.ranks th.cur{color:var(--ink); font-weight:600; box-shadow:inset 0 -3px 0 var(--hub)}
+.ranks td{padding:5px 6px; border-bottom:1px solid var(--grid-minor)}
+.ranks td:first-child{color:var(--muted); width:2.2em}
+.nodebtn{font-size:14px; font-weight:600; padding:1px 8px; border-radius:999px; background:transparent; color:var(--ink); border:1.5px solid var(--grid); min-width:2.6em}
+.nodebtn:hover, .nodebtn.on{background:var(--hub); border-color:var(--hub); color:#fff}
+.val{color:var(--muted); margin-left:4px}
+.detail{margin-top:14px; font-size:15px; min-height:4.8em}
+.detail b{font-variant-numeric:tabular-nums}
+.bars{display:grid; grid-template-columns:minmax(150px,auto) 1fr 3.2em; gap:4px 10px; font-size:14px; align-items:center}
+.bars .bar{height:12px; border-radius:2px; background:var(--muted); opacity:.55}
+.bars .mine{font-weight:600}
+.bars .mine.er .bar{background:var(--er); opacity:1}
+.bars .mine.sf .bar{background:var(--sf); opacity:1}
+.bars .num{text-align:right; font-variant-numeric:tabular-nums}
+code{font-size:14px; background:var(--grid-minor); padding:1px 5px; border-radius:3px}
+footer{padding:48px 0 64px; font-size:14px; color:var(--muted)}
+footer p{max-width:80ch}
+.status{font-size:13px; color:var(--muted); min-height:1.4em}
+@media (prefers-reduced-motion: reduce){ .tip{transition:none} }
+
+.eq{padding:12px 0; border-bottom:1px solid var(--grid-minor)}
+.eq:last-of-type{border-bottom:0}
+.eq .what{font-size:14px; color:var(--muted); margin-bottom:2px}
+.eq .formula{white-space:normal; line-height:1.9; font-size:16px}
+.eq .res{font-weight:700} .res.k{color:var(--ink)} .res.kf{color:var(--sf)} .res.kn{color:var(--er)}
+.res.k{color:var(--ink)} .res.kf{color:var(--sf)} .res.kn{color:var(--er)}
+.tabs{margin:14px 0 10px}
+.stat{display:grid; grid-template-columns:1fr auto; gap:4px 14px; font-size:15px; font-variant-numeric:tabular-nums}
+.stat div:nth-child(odd){color:var(--muted)}
+.stat div:nth-child(even){text-align:right; font-weight:600}
+.stat .sep{grid-column:1 / -1; border-top:1px solid var(--grid); margin:4px 0}
+blockquote{font-family:var(--display); font-size:22px; line-height:1.45; margin:24px 0 6px; max-width:44ch; padding-left:18px; border-left:3px solid var(--sf)}
+.cite{font-size:14px; color:var(--muted); margin-left:21px}
+.legend > span{display:inline-block}
+.legend .swatch, .legend .line-key{margin-right:6px; vertical-align:middle}
+.stat .sep ~ div:nth-child(even){color:var(--muted); text-align:left; font-weight:400}
+.stat .sep ~ div:nth-child(odd){color:var(--ink); text-align:right; font-weight:600}
+.box{border:1px solid var(--grid); background:var(--sheet); border-radius:6px; padding:14px 18px; margin:14px 0; max-width:780px}
+.box p:last-child{margin-bottom:0}
+</style>
+<style>
+.ctl-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+.queue{display:flex; flex-wrap:wrap; gap:6px; min-height:34px; align-items:center}
+.queue .chip{font-weight:600}
+.queue .chip.head{border-color:var(--path); color:var(--path)}
+.log{font-size:15px; min-height:3.2em}
+.algo{font-size:15px; margin:0; padding-left:1.3em}
+.algo li{margin:2px 0}
+.algo li.on{color:var(--path); font-weight:600}
+.dmat{border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums; margin-top:6px}
+.dmat th, .dmat td{width:2.4em; height:2em; text-align:center; border:1px solid var(--grid-minor)}
+.dmat th{color:var(--muted); font-weight:500}
+.dmat td{cursor:pointer}
+.dmat td:hover{background:var(--grid-minor)}
+.dmat tr.src td{background:var(--grid-minor)}
+.dmat td.tgt{outline:2px solid var(--path); outline-offset:-2px; font-weight:700}
+.dmat td.inf{color:var(--muted)}
+.cmp{width:100%; border-collapse:collapse; font-size:15px; font-variant-numeric:tabular-nums}
+.cmp th{font-weight:500; color:var(--muted); text-align:right; padding:4px 8px; border-bottom:1px solid var(--grid)}
+.cmp td{text-align:right; padding:5px 8px; border-bottom:1px solid var(--grid-minor)}
+.cmp th:first-child, .cmp td:first-child{text-align:left}
+.cmp tr.on td{font-weight:700}
+svg [data-e]{cursor:pointer}
+svg [data-e]:focus{outline:none}
+svg [data-e]:focus-visible{stroke:var(--focus) !important; stroke-opacity:.5}
+</style>
+</head>
+<body>
+<div class="tip" id="tip"></div>
+
+<header class="wrap">
+  <h1>The small-world effect</h1>
+  <p class="credit">Created by Claude Opus 5.5, based on the lecture slides by Sang Hoon Lee.</p>
+  <p class="lede" style="margin-top:18px">Your Erdős number, your Bacon number, Milgram’s letters from Omaha to Boston: in many real networks almost anyone is a handful of steps from anyone else. Pick a network and a starting person, and color everyone by how many steps away they are.</p>
+
+  <div class="controls">
+    <label class="ctl">Network (about 400 people)
+      <select id="hNet">
+        <option value="lattice" selected>2D square lattice, 20 × 20</option>
+        <option value="ring">Ring lattice, each linked to 4 neighbors</option>
+        <option value="ws">Ring with 5% of links rewired (Watts–Strogatz)</option>
+        <option value="er">Random links, ⟨k⟩ = 4</option>
+        <option value="karate">Zachary’s karate club (34)</option>
+      </select></label>
+    <button id="hFar" type="button">Start from a random person</button>
+  </div>
+  <div class="hero-grid">
+    <div class="sheet">
+      <canvas id="hCv" class="netcv" aria-label="Network colored by distance from the chosen person"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--hub)"></span>Starting person</span>
+        <span><span class="swatch" style="background:var(--path)"></span>One step away</span>
+        <span><span class="swatch" style="background:var(--sf)"></span>Halfway</span>
+        <span><span class="swatch" style="background:var(--node)"></span>Farthest away</span>
+        <span>Click or tap anyone to start from them.</span>
+      </div>
+    </div>
+    <div class="sheet">
+      <h3>How many steps away?</h3>
+      <canvas id="hHist" class="chart" aria-label="Number of people at each distance"></canvas>
+      <p class="note" id="hNote" style="margin-top:8px"></p>
+    </div>
+  </div>
+  <p class="callout" id="hText"></p>
+</header>
+
+<main class="wrap">
+
+<section id="tree">
+  <h2>Trees: the simplest way to branch out</h2>
+  <p>A network is a tree when it is connected and has no cycle, no path \(a\to b\to\cdots\to a\). Then it always has exactly \(L = N-1\) links for \(N\) nodes, and deleting any one link splits it into two pieces. Any node can serve as the root. Every other node sits in a layer, and the layer number is its shortest distance to the root; nodes with no children are the leaves.</p>
+  <div class="controls">
+    <button id="tAdd" type="button">Add a random link</button>
+    <button id="tReset" type="button">Reset</button>
+  </div>
+  <div class="hero-grid">
+    <div class="sheet">
+      <svg class="graph" id="tSvg" viewBox="0 0 620 380" role="group" aria-label="A tree drawn in layers"></svg>
+      <div class="legend">
+        <span>Click a node to make it the root. Click a link to cut it or put it back.</span>
+        <span style="color:var(--hub)"><span class="line-key dash"></span>Extra link that closes a cycle</span>
+      </div>
+    </div>
+    <div class="sheet">
+      <div class="stat" id="tStat"></div>
+      <p class="note" style="margin-top:12px">In NetworkX: <code>nx.is_tree(G)</code> is <code>True</code> for paths and stars and <code>False</code> for cycles and complete networks.</p>
+    </div>
+  </div>
+  <p class="callout" id="tText"></p>
+</section>
+
+<section id="bfs">
+  <h2>Finding shortest paths: breadth-first search</h2>
+  <p>NetworkX will find shortest paths for you, but what happens behind the scenes is breadth-first search. Starting from a source, visit all of its neighbors (distance 1), then all of their unvisited neighbors (distance 2), and so on, like a snowball rolling outward. Each layer is finished before the next one starts, so the first time a node is reached is along a shortest path. The links used to reach new nodes form a shortest-path tree rooted at the source.</p>
+  <div class="hero-grid">
+    <div class="sheet">
+      <svg class="graph" id="bSvg" viewBox="0 0 580 390" role="group" aria-label="Breadth-first search on a small network"></svg>
+      <div class="legend">
+        <span>Click a node to start from it.</span>
+        <span style="color:var(--path)"><span class="line-key"></span>Shortest-path tree</span>
+        <span>Numbers inside are distances; “?” is not reached yet.</span>
+      </div>
+    </div>
+    <div class="sheet">
+      <h3>The algorithm</h3>
+      <ol class="algo" id="bAlgo">
+        <li>Put the source in the frontier (a first-in, first-out queue) with \(\ell(s,s) = 0\); every other distance is unknown.</li>
+        <li>Take the next node \(i\) out of the frontier.</li>
+        <li>For each neighbor \(j\) of \(i\) without a distance yet: set \(\ell_{sj} = \ell_{si} + 1\), add the link \(i\to j\) to the tree, and put \(j\) in the frontier.</li>
+        <li>Repeat until the frontier is empty. Nodes still without a distance cannot be reached.</li>
+      </ol>
+      <p class="note" style="margin:14px 0 6px">Frontier, next out first</p>
+      <div class="queue" id="bQueue"></div>
+      <div class="controls" style="margin:14px 0 6px">
+        <button id="bStep" type="button">Next step</button>
+        <button id="bPlay" type="button">Play</button>
+        <button id="bReset" type="button">Restart</button>
+      </div>
+      <p class="log" id="bLog"></p>
+    </div>
+  </div>
+</section>
+
+<section id="distance">
+  <h2>Distance and the average path length</h2>
+  <p>The distance \(\ell(i\to j)\) is the length of a shortest path from \(i\) to \(j\). In a directed network it need not equal \(\ell(j\to i)\), and some targets may not be reachable at all. Averaging over every ordered pair gives the average path length,</p>
+  <p class="formula big">\[ \langle \ell\rangle = \frac{\sum_{i\neq j} \ell(i\to j)}{N(N-1)} , \]</p>
+  <p>which is finite only if every node can reach every other. In the example from the slides, \(\ell(1\to 2) = 1\), \(\ell(1\to 7) = 2\) and \(\ell(1\to 6) = 4\), but nobody can reach node 4.</p>
+  <div class="two">
+    <div class="sheet">
+      <svg class="graph" id="dSvg" viewBox="0 0 520 330" role="group" aria-label="Directed network"></svg>
+      <div class="legend"><span>Click a node to use it as the source, or a cell of the table to pick a pair.</span></div>
+    </div>
+    <div class="sheet">
+      <h3>\(\ell(i\to j)\), row \(i\) to column \(j\)</h3>
+      <div style="overflow-x:auto"><table class="dmat" id="dMat"></table></div>
+      <p id="dText" style="margin-top:12px"></p>
+    </div>
+  </div>
+</section>
+
+<section id="scaling">
+  <h2>Large worlds and small worlds</h2>
+  <p>On a 2D square lattice, distance is the Manhattan distance: you can only walk along the streets. Within distance \(\ell\) there are about \(\ell^2\) nodes, so \(N\propto\langle\ell\rangle^2\) and \(\langle\ell\rangle\propto N^{1/2}\). Any algebraic growth \(\langle\ell\rangle\propto N^\alpha\) with \(\alpha>0\) makes a large world. In a small world the average path length grows only like \(\log N\), a very, very slowly increasing function of \(N\). Grow each network below and watch.</p>
+  <div class="controls">
+    <div class="ctl">Vertical axis
+      <div class="seg" role="radiogroup" aria-label="Vertical axis">
+        <label><input type="radio" name="sAx" value="lin" checked><span>Linear</span></label>
+        <label><input type="radio" name="sAx" value="log"><span>Logarithmic</span></label>
+      </div>
+    </div>
+    <span class="status" id="sStatus"></span>
+  </div>
+  <div class="sheet">
+    <canvas id="sCv" class="chart wide" aria-label="Average path length versus network size"></canvas>
+    <div class="legend">
+      <span style="color:var(--node)"><span class="line-key"></span>Ring lattice, 4 neighbors</span>
+      <span style="color:var(--path)"><span class="line-key"></span>2D square lattice</span>
+      <span style="color:var(--sf)"><span class="line-key"></span>Ring with 5% rewired</span>
+      <span style="color:var(--er)"><span class="line-key"></span>Random, \(\langle k\rangle = 4\)</span>
+      <span style="color:var(--muted)"><span class="line-key dash"></span>Predictions \(N/8\), \(\tfrac{2}{3}\sqrt N\), \(\ln N/\ln\langle k\rangle\)</span>
+    </div>
+  </div>
+  <p class="callout" id="sText"></p>
+
+  <h3 style="margin-top:36px">How slow is “very, very slowly”?</h3>
+  <p>Any power of \(N\), however small, eventually beats \(\log N\). The crossover can lie unimaginably far out, which is why a logarithm behaves like a constant for every network we will ever see.</p>
+  <div class="controls">
+    <label class="ctl"><span>Exponent \(\alpha\) in \(N^\alpha\): <output id="aOut">0.10</output></span>
+      <input type="range" id="aIn" min="-2" max="-0.3" step="0.05" value="-1"></label>
+  </div>
+  <div class="sheet">
+    <canvas id="aCv" class="chart wide" aria-label="ln N versus N to the alpha"></canvas>
+    <div class="legend">
+      <span style="color:var(--er)"><span class="line-key"></span>\(\ln N\)</span>
+      <span style="color:var(--path)"><span class="line-key"></span>\(N^\alpha\)</span>
+    </div>
+  </div>
+  <p class="callout" id="aText"></p>
+</section>
+
+<section id="why">
+  <h2>Where the logarithm comes from</h2>
+  <p>A very crude estimate: if each node has about \(\langle k\rangle\) neighbors, there are about \(\langle k\rangle^n\) nodes in layer \(n\) around any source, ignoring loops, overlapping neighbors and variations in degree. Adding up the layers out to the farthest one,</p>
+  <p class="formula big">\[ N \sim \sum_{n=0}^{\ell_\text{max}} \langle k\rangle^n = \frac{\langle k\rangle^{\ell_\text{max}+1}-1}{\langle k\rangle-1} \sim \langle k\rangle^{\ell_\text{max}} \quad\Longrightarrow\quad \langle\ell\rangle \sim \ell_\text{max} \sim \log_{\langle k\rangle} N \propto \log N . \]</p>
+  <p>In a Cayley tree (Bethe lattice), where every node has exactly \(k\) neighbors, this is exact: layer \(n\) has \(k(k-1)^{n-1}\) nodes. Random links come close, because loops are rare. In the 2D lattice the loops cannot be ignored: your neighbors’ neighbors are mostly each other’s neighbors too, so layers grow only like \(4n\). The key to small-worldness is relatively rare loops and a lack of regularity, in other words randomness.</p>
+  <div class="controls">
+    <label class="ctl">Network (about 10,000 nodes)
+      <select id="wNet">
+        <option value="cayley" selected>Cayley tree, k = 3</option>
+        <option value="er">Random, ⟨k⟩ = 4</option>
+        <option value="ws">Ring with 5% rewired, k = 4</option>
+        <option value="lattice">2D square lattice, 100 × 100</option>
+      </select></label>
+    <button id="wSrc" type="button">Pick another source</button>
+  </div>
+  <div class="two">
+    <div class="sheet">
+      <h3>Nodes in each layer</h3>
+      <canvas id="wCv" class="chart" aria-label="Nodes at each distance from the source"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--node)"></span>Measured by BFS</span>
+        <span style="color:var(--hub)"><span class="line-key dash"></span>Tree-like prediction</span>
+      </div>
+    </div>
+    <div class="sheet">
+      <div class="stat" id="wStat"></div>
+    </div>
+  </div>
+  <p class="callout" id="wText"></p>
+</section>
+
+<section id="ws">
+  <h2>Watts and Strogatz: a little randomness goes a long way</h2>
+  <p>Start from a ring where each node links to its nearest neighbors: lots of local loops, long distances. Now rewire each link, with probability \(p\), to a random node. At \(p = 1\) the network is random: short distances, few loops. Watts and Strogatz (Nature, 1998) found that a tiny \(p\) is enough to collapse the path length while barely touching the clustering, the share of your friends who are friends with each other (defined in the next section). Real networks live in that window: both clustered and small.</p>
+  <div class="controls">
+    <label class="ctl"><span>Rewiring probability \(p\): <output id="pOut">0.010</output></span>
+      <input type="range" id="pIn" min="-4" max="0" step="0.05" value="-2"></label>
+  </div>
+  <div class="two">
+    <div class="sheet">
+      <canvas id="wsRing" class="netcv" aria-label="Ring of 20 nodes with rewired links"></canvas>
+      <div class="legend"><span style="color:var(--hub)"><span class="line-key"></span>Rewired links</span><span>20 nodes, 4 neighbors each</span></div>
+    </div>
+    <div class="sheet">
+      <canvas id="wsCv" class="chart" style="aspect-ratio:1/1" aria-label="Clustering and path length versus rewiring probability"></canvas>
+      <div class="legend">
+        <span style="color:var(--path)"><span class="swatch" style="background:var(--path)"></span>\(C(p)/C(0)\)</span>
+        <span style="color:var(--node)"><span class="swatch" style="background:var(--node)"></span>\(L(p)/L(0)\)</span>
+        <span>1,000 nodes, 10 neighbors each</span>
+      </div>
+    </div>
+  </div>
+  <p class="callout" id="wsText"></p>
+  <p class="status" id="wsStatus"></p>
+</section>
+
+<section id="clustering">
+  <h2>Clustering: are my friends friends with each other?</h2>
+  <p>The clustering coefficient of a node is the fraction of pairs of its neighbors that are linked to each other. With \(\tau(i)\) the number of triangles through \(i\), and at most \(\binom{k_i}{2}\) of them,</p>
+  <p class="formula big">\[ C(i) = \frac{\tau(i)}{\tau_\text{max}(i)} = \frac{\tau(i)}{\binom{k_i}{2}} = \frac{2\,\tau(i)}{k_i(k_i-1)} , \]</p>
+  <p>defined only when \(k_i > 1\). Click the dashed lines to link or unlink pairs of \(i\)’s friends.</p>
+  <div class="controls">
+    <label class="ctl"><span>Number of friends \(k_i\): <output id="eKOut">4</output></span>
+      <input type="range" id="eKIn" min="2" max="7" step="1" value="4"></label>
+  </div>
+  <div class="two">
+    <div class="sheet"><svg class="graph" id="eSvg" viewBox="0 0 420 290" role="group" aria-label="A node and its neighbors"></svg></div>
+    <div><p class="callout" id="eText" style="margin-top:0"></p></div>
+  </div>
+
+  <h3 style="margin-top:36px">One number for a whole network: two different answers</h3>
+  <p>The clustering coefficient of a network averages \(C(i)\) over the \(N_{k>1}\) nodes that have at least two neighbors. A related but different quantity, the transitivity, counts triangles against triads, the connected triples centered on a node:</p>
+  <p class="formula big">\[ C = \frac{\sum_{i:\,k_i>1} C(i)}{N_{k>1}}, \qquad T = 3\,\frac{\text{number of triangles}}{\text{number of triads}}, \qquad \text{triads} = \sum_i \frac{k_i(k_i-1)}{2} = \frac{1}{2}\Big(\sum_i k_i^2 - \sum_i k_i\Big) . \]</p>
+  <p>\(C\) weights every node equally; \(T\) weights them by their number of triads, so hubs with sparsely linked friends pull it down. NetworkX’s <code>average_clustering</code> also counts nodes with \(k < 2\) as zero, which underestimates \(C\) as defined in the textbook. Real networks have \(C\) and \(T\) far above what random links would give, about \(\langle k\rangle/(N-1)\).</p>
+  <div class="controls">
+    <label class="ctl">Network
+      <select id="cNet">
+        <option value="four" selected>Four nodes from the slides</option>
+        <option value="karate">Zachary’s karate club</option>
+        <option value="football">College football</option>
+        <option value="ws">Ring, 5% rewired (300 nodes, k = 6)</option>
+        <option value="er">Random (300 nodes, ⟨k⟩ = 6)</option>
+      </select></label>
+  </div>
+  <div class="two">
+    <div class="sheet">
+      <canvas id="cCv" class="netcv" aria-label="Network colored by clustering coefficient"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--hub)"></span>\(C(i) = 1\)</span>
+        <span><span class="swatch" style="background:var(--node);opacity:.35"></span>\(C(i) = 0\)</span>
+        <span><span class="swatch" style="background:transparent;border:2px solid var(--muted)"></span>\(k<2\), undefined</span>
+      </div>
+    </div>
+    <div class="sheet"><div class="stat" id="cStat"></div></div>
+  </div>
+  <p class="callout" id="cText"></p>
+</section>
+</main>
+
+<footer class="wrap">
+  <p>Created by Claude Opus 5.5, based on the lecture slides by Sang Hoon Lee.</p>
+  <p>Everything is computed in your browser. Average path lengths of the larger networks are averages over breadth-first searches from randomly chosen sources in the largest connected component; the 400-node networks at the top use every source. Random networks are Erdős–Rényi G(N, M). The rewired rings follow Watts and Strogatz: each link of a ring lattice keeps one end and moves the other to a uniformly random node with probability p, avoiding self-loops and duplicate links. Lattices have open boundaries.</p>
+  <p>F. Menczer, S. Fortunato and C. A. Davis, <i>A First Course in Network Science</i> (Cambridge University Press, 2020), Chapter 2. D. J. Watts and S. H. Strogatz, Nature 393, 440 (1998). S. Milgram, Psychology Today 1, 61 (1967). W. W. Zachary, J. Anthropol. Res. 33, 452 (1977). M. Girvan and M. E. J. Newman, Proc. Natl. Acad. Sci. USA 99, 7821 (2002).</p>
+</footer>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- math typesetting (KaTeX, with plain TeX as the fallback) ---------- */
+const MATH_OPTS = { delimiters: [{ left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }], throwOnError: false, fleqn: true, trust: c => c.command === "\\htmlClass" };
+function typeset(el){ if (window.renderMathInElement && el) renderMathInElement(el, MATH_OPTS); }
+function setMath(el, html){ el.innerHTML = html; typeset(el); }
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let RNG = Math.random;
+const rnd = n => (RNG() * n) | 0;
+function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function seeded(seed, fn){ const old = RNG; RNG = mulberry32(seed); try { return fn(); } finally { RNG = old; } }
+const pause = () => new Promise(r => setTimeout(r, 0));
+const fmt = (v, d = 3) => v === 0 ? "0" : v >= 100 ? Math.round(v).toLocaleString("en-US") : v.toFixed(d);
+
+/* ---------- graphs ---------- */
+function build(N, edges){
+  const deg = new Int32Array(N);
+  for (let i = 0; i < edges.length; i++) deg[edges[i]]++;
+  const off = new Int32Array(N + 1);
+  for (let i = 0; i < N; i++) off[i + 1] = off[i] + deg[i];
+  const fill = off.slice(0, N), nbr = new Int32Array(edges.length), eid = new Int32Array(edges.length);
+  for (let i = 0; i < edges.length; i += 2){
+    const a = edges[i], b = edges[i + 1];
+    eid[fill[a]] = i >> 1; nbr[fill[a]++] = b;
+    eid[fill[b]] = i >> 1; nbr[fill[b]++] = a;
+  }
+  return { N, deg, off, nbr, eid, edges: Int32Array.from(edges) };
+}
+function EdgeSet(N){ const seen = new Set(), e = []; return { e, add(a, b){ if (a === b) return false; if (a > b){ const t = a; a = b; b = t; } const k = a * N + b; if (seen.has(k)) return false; seen.add(k); e.push(a, b); return true; } }; }
+function genER(N, kavg){
+  const M = Math.min(Math.round(N * kavg / 2), N * (N - 1) / 2), S = EdgeSet(N);
+  while (S.e.length < 2 * M) S.add(rnd(N), rnd(N));
+  return build(N, S.e);
+}
+function genBA(N, m){
+  const edges = [], ends = [], m0 = m + 1;
+  for (let i = 0; i < m0; i++) for (let j = 0; j < i; j++){ edges.push(i, j); ends.push(i, j); }
+  const chosen = new Set();
+  for (let v = m0; v < N; v++){
+    chosen.clear();
+    while (chosen.size < m) chosen.add(ends[rnd(ends.length)]);
+    for (const t of chosen){ edges.push(v, t); ends.push(v, t); }
+  }
+  return build(N, edges);
+}
+function largestComponent(g){
+  const comp = new Int32Array(g.N).fill(-1), q = new Int32Array(g.N);
+  let best = -1, bestSize = 0, c = 0;
+  for (let s = 0; s < g.N; s++){
+    if (comp[s] >= 0) continue;
+    let h = 0, t = 0; q[t++] = s; comp[s] = c;
+    while (h < t){ const v = q[h++]; for (let p = g.off[v]; p < g.off[v + 1]; p++){ const u = g.nbr[p]; if (comp[u] < 0){ comp[u] = c; q[t++] = u; } } }
+    if (t > bestSize){ bestSize = t; best = c; }
+    c++;
+  }
+  if (bestSize === g.N) return g;
+  const map = new Int32Array(g.N).fill(-1); let n = 0;
+  for (let i = 0; i < g.N; i++) if (comp[i] === best) map[i] = n++;
+  const e = [];
+  for (let i = 0; i < g.edges.length; i += 2){ const a = map[g.edges[i]]; if (a >= 0) e.push(a, map[g.edges[i + 1]]); }
+  return build(n, e);
+}
+
+/* ---------- theme helpers ---------- */
+let C = {};
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  ["ink","muted","grid","grid-minor","er","sf","hub","node","path","edge","sheet"].forEach(k => C[k] = cs.getPropertyValue("--" + k).trim());
+}
+readColors();
+function setup(cv){
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)){ cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+const bodyFont = () => getComputedStyle(document.body).fontFamily;
+
+/* ---------- charting ---------- */
+const SUP = { "-":"⁻", "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹" };
+function fmtLog(v){
+  const e = Math.round(Math.log10(v));
+  if (Math.abs(Math.log10(v) - e) > 1e-9) return String(+v.toPrecision(2));
+  if (e >= 0 && e <= 4) return Math.pow(10, e).toLocaleString("en-US");
+  return "10" + String(e).split("").map(c => SUP[c]).join("");
+}
+function niceStep(range, n){
+  const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), r = raw / p;
+  return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * p;
+}
+function makeAxis(a, p0, p1){
+  const tf = a.log ? Math.log10 : v => v;
+  const t0 = tf(a.min), t1 = tf(a.max);
+  const f = v => p0 + (tf(v) - t0) / (t1 - t0) * (p1 - p0);
+  const major = [], minor = [];
+  if (a.log){
+    for (let e = Math.floor(t0); e <= Math.ceil(t1); e++){
+      const base = Math.pow(10, e);
+      if (base >= a.min * 0.999 && base <= a.max * 1.001) major.push(base);
+      if (t1 - t0 <= 6) for (let m = 2; m <= 9; m++){ const v = m * base; if (v > a.min && v < a.max) minor.push(v); }
+    }
+    const step = Math.ceil(major.length / 7);
+    f.major = major.filter((_, i) => i % step === 0);
+    f.fmt = a.fmt || fmtLog;
+  } else {
+    const st = niceStep(a.max - a.min, a.n || 5);
+    for (let v = Math.ceil(a.min / st) * st; v <= a.max + 1e-9; v += st) major.push(+v.toPrecision(10));
+    f.major = major; f.fmt = a.fmt || (v => v.toLocaleString("en-US"));
+  }
+  f.minor = minor; f.min = a.min; f.max = a.max;
+  return f;
+}
+// axis labels: text between asterisks is set as an italic math variable, the rest upright
+function richText(ctx, s, x, y){
+  const parts = String(s).split("*"), fonts = parts.map((_, i) => i % 2 ? "italic 15px 'Times New Roman', Times, serif" : "13px " + bodyFont());
+  let w = 0; parts.forEach((p, i) => { ctx.font = fonts[i]; w += ctx.measureText(p).width; });
+  let cx = x - w / 2; ctx.textAlign = "left";
+  parts.forEach((p, i) => { ctx.font = fonts[i]; ctx.fillText(p, cx, y); cx += ctx.measureText(p).width; });
+}
+function plot(cv, o){
+  const { ctx, w, h } = setup(cv);
+  const pad = Object.assign({ l: 56, r: 24, t: 12, b: o.x.label ? 46 : 28 }, o.pad || {});
+  ctx.font = "12px " + bodyFont();
+  if (!o.y.hideTicks && !(o.pad && o.pad.l)){ const Y0 = makeAxis(o.y, 1, 0); pad.l = Math.max(pad.l, 34 + Math.max(...Y0.major.map(v => ctx.measureText(Y0.fmt(v)).width))); }
+  const X = makeAxis(o.x, pad.l, w - pad.r), Y = makeAxis(o.y, h - pad.b, pad.t);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = C["grid-minor"];
+  ctx.beginPath();
+  X.minor.forEach(v => { const x = Math.round(X(v)) + .5; ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b); });
+  Y.minor.forEach(v => { const y = Math.round(Y(v)) + .5; ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); });
+  ctx.stroke();
+  ctx.strokeStyle = C.grid;
+  ctx.beginPath();
+  X.major.forEach(v => { const x = Math.round(X(v)) + .5; ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b); });
+  Y.major.forEach(v => { const y = Math.round(Y(v)) + .5; ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); });
+  ctx.stroke();
+  ctx.fillStyle = C.muted; ctx.font = "12px " + bodyFont();
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  if (!o.x.hideTicks) X.major.forEach(v => ctx.fillText(X.fmt(v), X(v), h - pad.b + 6));
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  if (!o.y.hideTicks) Y.major.forEach(v => ctx.fillText(Y.fmt(v), pad.l - 6, Y(v)));
+  ctx.textBaseline = "bottom"; ctx.fillStyle = C.ink;
+  if (o.x.label) richText(ctx, o.x.label, (pad.l + w - pad.r) / 2, h - 4);
+  if (o.y.label){ ctx.save(); ctx.translate(14, (pad.t + h - pad.b) / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "middle"; richText(ctx, o.y.label, 0, 0); ctx.restore(); }
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, w - pad.l - pad.r, h - pad.t - pad.b); ctx.clip();
+  const ok = (x, y) => isFinite(x) && isFinite(y) && (!o.x.log || x > 0) && (!o.y.log || y > 0);
+  for (const s of o.series){
+    const col = C[s.color] || s.color;
+    if (s.type === "line"){
+      ctx.strokeStyle = col; ctx.lineWidth = s.width || 2.2; ctx.setLineDash(s.dash ? [6, 5] : []);
+      ctx.lineJoin = "round"; ctx.beginPath(); let pen = false;
+      for (const [x, y] of s.pts){
+        if (!ok(x, y)){ pen = false; continue; }
+        const px = X(x), py = Math.max(-1e4, Math.min(1e4, Y(y)));
+        pen ? ctx.lineTo(px, py) : ctx.moveTo(px, py); pen = true;
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+    } else if (s.type === "bars"){
+      ctx.fillStyle = col; ctx.globalAlpha = s.alpha || 1;
+      for (const [x0, x1, y] of s.pts){ if (y <= 0) continue; const a = X(x0), b = X(x1); ctx.fillRect(a + 1, Y(y), Math.max(1, b - a - 2), Y(o.y.min) - Y(y)); }
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = col; ctx.globalAlpha = s.alpha || 1;
+      const r = s.r || 3;
+      for (const [x, y] of s.pts){
+        if (!ok(x, y)) continue;
+        ctx.beginPath();
+        if (s.shape === "diamond"){ const px = X(x), py = Y(y); ctx.moveTo(px, py - r * 1.25); ctx.lineTo(px + r, py); ctx.lineTo(px, py + r * 1.25); ctx.lineTo(px - r, py); }
+        else ctx.arc(X(x), Y(y), r, 0, 7);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+  if (o.after) o.after(ctx, X, Y, w, h, pad);
+}
+
+function forceTick(g, s, L){
+  const { x, y, vx, vy } = s, N = g.N, a = s.alpha, rep = 220;
+  for (let i = 0; i < N; i++){
+    for (let j = i + 1; j < N; j++){
+      let dx = x[i] - x[j], dy = y[i] - y[j]; const d2 = dx * dx + dy * dy + 0.01;
+      if (d2 > 10000) continue;
+      const d = Math.sqrt(d2), f = rep / d2 * a / d;
+      dx *= f; dy *= f; vx[i] += dx; vy[i] += dy; vx[j] -= dx; vy[j] -= dy;
+    }
+  }
+  const E = g.edges;
+  for (let e = 0; e < E.length; e += 2){
+    const i = E[e], j = E[e + 1];
+    const dx = x[j] - x[i], dy = y[j] - y[i], d = Math.sqrt(dx * dx + dy * dy) + 0.01;
+    const k = (d - L) / d * 0.08 * a / Math.sqrt(Math.min(g.deg[i], g.deg[j]));
+    vx[i] += dx * k; vy[i] += dy * k; vx[j] -= dx * k; vy[j] -= dy * k;
+  }
+  for (let i = 0; i < N; i++){
+    vx[i] -= x[i] * 0.004 * a; vy[i] -= y[i] * 0.004 * a;
+    vx[i] *= 0.6; vy[i] *= 0.6; x[i] += vx[i]; y[i] += vy[i];
+  }
+}
+/* ---------- small SVG graphs ---------- */
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function makeSmall(svg, pos, edgeList, onPick){
+  const N = pos.length, flat = []; edgeList.forEach(([a, b]) => flat.push(a, b));
+  const g = build(N, flat);
+  svg.addEventListener("click", e => { const n = e.target.closest("[data-n]"); if (n) onPick(+n.dataset.n); });
+  svg.addEventListener("keydown", e => { const n = e.target.closest("[data-n]"); if (n && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); onPick(+n.dataset.n); } });
+  return { g, pos, render(o){
+    const focused = document.activeElement && svg.contains(document.activeElement) ? document.activeElement.dataset.n : null;
+    svg.textContent = "";
+    const eg = svgEl("g", {}, svg);
+    edgeList.forEach(([a, b], e) => {
+      svgEl("line", { x1: pos[a][0], y1: pos[a][1], x2: pos[b][0], y2: pos[b][1], style: `stroke:${o.edgeColor ? o.edgeColor(e) : "var(--muted)"};stroke-width:${o.edgeWidth ? o.edgeWidth(e) : 2};stroke-linecap:round;stroke-opacity:${o.edgeOpacity ? o.edgeOpacity(e) : .55}` }, eg);
+    });
+    if (o.edgeLabel) edgeList.forEach(([a, b], e) => { const t = o.edgeLabel(e); if (!t) return;
+      const mx = (pos[a][0] + pos[b][0]) / 2, my = (pos[a][1] + pos[b][1]) / 2;
+      const tx = svgEl("text", { x: mx, y: my - 10, "text-anchor": "middle", style: "fill:var(--path);font:600 14px var(--body);paint-order:stroke;stroke:var(--sheet);stroke-width:4px" }, svg); tx.textContent = t; });
+    for (let i = 0; i < N; i++){
+      const r = o.r ? o.r(i) : 18;
+      const ng = svgEl("g", { "data-n": i, tabindex: 0, role: "button", "aria-label": o.aria ? o.aria(i) : `Node ${i + 1}` }, svg);
+      svgEl("circle", { cx: pos[i][0], cy: pos[i][1], r: r + 8, style: "fill:transparent" }, ng);
+      svgEl("circle", { class: "body", cx: pos[i][0], cy: pos[i][1], r, style: `fill:var(--sheet);stroke:${o.stroke ? o.stroke(i) : "var(--ink)"};stroke-width:${o.strokeW ? o.strokeW(i) : 2.5}` }, ng);
+      if (o.fill){ const [col, op] = o.fill(i); svgEl("circle", { cx: pos[i][0], cy: pos[i][1], r: r - 1, style: `fill:${col};fill-opacity:${op};pointer-events:none` }, ng); }
+      if (o.inner){ const [t, col] = o.inner(i); if (t !== ""){ const tx = svgEl("text", { x: pos[i][0], y: pos[i][1] + 1, "text-anchor": "middle", "dominant-baseline": "middle", style: `fill:${col || "var(--ink)"};font:600 ${r > 14 ? 16 : 12}px var(--body);pointer-events:none` }, ng); tx.textContent = t; } }
+      if (o.outer){ const t = o.outer(i); if (t){ const [dx, dy] = o.outerAt ? o.outerAt(i) : [0, -r - 9];
+        const tx = svgEl("text", { x: pos[i][0] + dx, y: pos[i][1] + dy, "text-anchor": "middle", style: "fill:var(--muted);font:13px var(--body);pointer-events:none;paint-order:stroke;stroke:var(--sheet);stroke-width:4px" }, ng); tx.textContent = t; } }
+    }
+    if (o.badge) for (let i = 0; i < N; i++){ const t = o.badge(i); if (!t) continue; const r = o.r ? o.r(i) : 18;
+      const tx = svgEl("text", { x: pos[i][0] + r + 3, y: pos[i][1] - r + 2, style: "fill:var(--path);font:700 14px var(--body);pointer-events:none;paint-order:stroke;stroke:var(--sheet);stroke-width:4px" }, svg); tx.textContent = t; }
+    if (focused !== null){ const el = svg.querySelector(`[data-n="${focused}"]`); if (el) el.focus({ preventScroll: true }); }
+  } };
+}
+
+
+
+const DATA = {"karate":{"n":34,"e":[0,1,0,2,0,3,0,4,0,5,0,6,0,7,0,8,0,10,0,11,0,12,0,13,0,17,0,19,0,21,0,31,1,2,1,3,1,7,1,13,1,17,1,19,1,21,1,30,2,3,2,7,2,8,2,9,2,13,2,27,2,28,2,32,3,7,3,12,3,13,4,6,4,10,5,6,5,10,5,16,6,16,8,30,8,32,8,33,9,33,13,33,14,32,14,33,15,32,15,33,18,32,18,33,19,33,20,32,20,33,22,32,22,33,23,25,23,27,23,29,23,32,23,33,24,25,24,27,24,31,25,31,26,29,26,33,27,33,28,31,28,33,29,32,29,33,30,32,30,33,31,32,31,33,32,33],"club":[0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1]},"football":{"n":115,"e":[0,1,0,4,0,9,0,16,0,23,0,33,0,35,0,41,0,65,0,90,0,93,0,104,1,25,1,27,1,33,1,37,1,45,1,57,1,89,1,101,1,103,1,105,1,109,2,3,2,6,2,13,2,14,2,15,2,47,2,60,2,64,2,72,2,74,2,100,2,106,3,5,3,11,3,26,3,40,3,52,3,58,3,72,3,74,3,81,3,84,3,102,4,5,4,9,4,16,4,23,4,28,4,41,4,69,4,93,4,104,4,108,5,10,5,11,5,52,5,74,5,81,5,84,5,90,5,97,5,98,5,107,6,7,6,32,6,39,6,47,6,55,6,58,6,60,6,64,6,85,6,100,6,106,7,8,7,21,7,22,7,40,7,68,7,73,7,77,7,78,7,82,7,108,7,111,8,9,8,21,8,22,8,41,8,51,8,68,8,77,8,78,8,90,8,111,9,16,9,22,9,23,9,41,9,64,9,93,9,104,9,108,10,11,10,60,10,72,10,74,10,81,10,84,10,98,10,102,10,107,11,24,11,28,11,50,11,69,11,90,11,97,11,104,12,13,12,14,12,17,12,18,12,26,12,34,12,36,12,38,12,43,12,85,13,15,13,32,13,39,13,45,13,60,13,64,13,100,13,106,13,110,14,15,14,26,14,38,14,43,14,54,14,71,14,85,14,99,15,32,15,39,15,47,15,60,15,68,15,92,15,100,15,106,15,114,16,17,16,23,16,38,16,41,16,67,16,81,16,93,16,104,17,20,17,27,17,58,17,62,17,65,17,87,17,95,17,96,17,113,18,19,18,31,18,34,18,36,18,38,18,42,18,54,18,61,18,71,18,99,19,29,19,30,19,33,19,35,19,36,19,44,19,55,19,79,19,94,19,101,20,21,20,36,20,62,20,65,20,70,20,75,20,76,20,87,20,96,20,113,21,22,21,32,21,46,21,51,21,68,21,77,21,108,21,111,22,23,22,47,22,51,22,68,22,77,22,78,22,108,23,41,23,78,23,90,23,93,23,104,23,111,24,25,24,28,24,50,24,66,24,69,24,84,24,87,24,90,24,110,25,33,25,37,25,45,25,53,25,89,25,103,25,105,25,106,25,109,26,27,26,34,26,38,26,42,26,43,26,61,26,85,27,56,27,62,27,63,27,65,27,70,27,76,27,95,27,96,28,38,28,50,28,69,28,78,28,90,28,113,29,30,29,35,29,42,29,55,29,79,29,80,29,82,29,91,29,94,29,101,30,35,30,44,30,50,30,55,30,79,30,82,30,94,30,101,30,109,31,32,31,34,31,43,31,54,31,55,31,61,31,71,31,79,31,85,31,99,32,39,32,47,32,49,32,64,32,100,32,106,33,37,33,45,33,89,33,103,33,105,33,109,34,35,34,42,34,54,34,61,34,71,34,94,34,99,35,44,35,55,35,79,35,92,35,94,35,101,36,37,36,43,36,58,36,59,37,45,37,80,37,89,37,95,37,103,37,105,37,109,38,39,38,43,38,54,38,71,38,85,39,47,39,54,39,60,39,82,39,100,39,106,40,41,40,51,40,52,40,72,40,74,40,81,40,98,40,102,40,107,41,67,41,93,41,104,42,43,42,57,42,63,43,61,43,70,43,79,43,85,44,45,44,48,44,57,44,66,44,75,44,86,44,91,44,112,45,62,45,89,45,103,45,105,45,109,46,47,46,49,46,53,46,67,46,73,46,83,46,88,46,110,46,111,46,114,47,60,47,61,47,64,47,100,48,49,48,53,48,57,48,66,48,75,48,86,48,91,48,92,48,96,48,98,49,53,49,67,49,73,49,83,49,84,49,88,49,110,49,114,50,51,50,68,50,69,50,78,50,90,51,68,51,77,51,78,51,101,51,108,51,111,52,53,52,72,52,74,52,84,52,98,52,102,52,112,53,67,53,73,53,83,53,86,53,88,53,110,53,114,54,55,54,61,54,71,54,99,55,79,55,89,55,94,55,101,56,57,56,62,56,65,56,70,56,76,56,87,56,95,56,96,56,106,57,75,57,86,57,91,57,92,57,112,58,59,58,63,58,88,58,97,58,101,58,114,59,60,59,63,59,66,59,76,59,97,59,113,60,64,60,71,60,106,61,62,61,71,61,92,61,99,62,70,62,76,62,87,62,95,62,105,63,64,63,65,63,97,63,109,63,112,64,100,64,106,64,111,65,66,65,70,65,87,65,96,65,113,66,75,66,76,66,86,66,91,66,92,66,112,67,68,67,73,67,83,67,88,67,104,67,110,67,114,68,78,68,108,68,111,69,70,69,83,69,88,69,90,69,91,69,95,70,76,70,95,70,103,70,113,71,72,71,99,72,74,72,81,72,102,72,104,72,107,73,74,73,77,73,83,73,88,73,110,73,114,74,82,74,84,74,102,75,76,75,86,75,92,75,107,75,112,76,95,76,96,76,113,77,78,77,82,77,98,77,108,77,111,78,108,78,111,79,80,79,94,79,101,79,109,80,82,80,85,80,86,80,91,80,93,80,94,80,105,80,110,81,82,81,83,81,84,81,98,81,107,82,93,82,94,82,100,83,84,83,88,83,110,83,114,84,98,84,107,85,99,86,87,86,91,86,92,86,97,87,95,87,96,87,104,87,113,88,89,88,107,88,110,88,114,89,99,89,103,89,105,89,109,91,92,91,93,91,112,92,106,92,112,93,104,94,101,95,113,96,112,96,113,97,98,97,112,98,102,98,107,99,100,100,102,102,103,102,107,103,105,103,109,104,114,105,109,108,111,110,114],"names":["BrighamYoung","FloridaState","Iowa","KansasState","NewMexico","TexasTech","PennState","SouthernCalifornia","ArizonaState","SanDiegoState","Baylor","NorthTexas","NorthernIllinois","Northwestern","WesternMichigan","Wisconsin","Wyoming","Auburn","Akron","VirginiaTech","Alabama","UCLA","Arizona","Utah","ArkansasState","NorthCarolinaState","BallState","Florida","BoiseState","BostonCollege","WestVirginia","BowlingGreenState","Michigan","Virginia","Buffalo","Syracuse","CentralFlorida","GeorgiaTech","CentralMichigan","Purdue","Colorado","ColoradoState","Connecticut","EasternMichigan","EastCarolina","Duke","FresnoState","OhioState","Houston","Rice","Idaho","Washington","Kansas","SouthernMethodist","Kent","Pittsburgh","Kentucky","Louisville","LouisianaTech","LouisianaMonroe","Minnesota","MiamiOhio","Vanderbilt","MiddleTennesseeState","Illinois","MississippiState","Memphis","Nevada","Oregon","NewMexicoState","SouthCarolina","Ohio","IowaState","SanJoseState","Nebraska","SouthernMississippi","Tennessee","Stanford","WashingtonState","Temple","Navy","TexasA&M","NotreDame","TexasElPaso","Oklahoma","Toledo","Tulane","Mississippi","Tulsa","NorthCarolina","UtahState","Army","Cincinnati","AirForce","Rutgers","Georgia","LouisianaState","LouisianaLafayette","Texas","Marshall","MichiganState","MiamiFlorida","Missouri","Clemson","NevadaLasVegas","WakeForest","Indiana","OklahomaState","OregonState","Maryland","TexasChristian","California","AlabamaBirmingham","Arkansas","Hawaii"],"conf":[7,0,2,3,7,3,2,8,8,7,3,10,6,2,6,2,7,9,6,1,9,8,8,7,10,0,6,9,11,1,1,6,2,0,6,1,5,0,6,2,3,7,5,6,4,0,11,2,4,11,10,8,3,11,6,1,9,4,11,10,2,6,9,10,2,9,4,11,8,10,9,6,3,11,3,4,9,8,8,1,5,3,5,11,3,6,4,9,11,0,5,4,4,7,1,9,9,10,3,6,2,1,3,0,7,0,2,3,8,0,4,8,4,9,11]}};
+const tip = $("tip");
+const radioVal = name => document.querySelector(`input[name="${name}"]:checked`).value;
+const f3 = v => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(3));
+
+/* ---------- colors ---------- */
+function rgbOf(c){ c = c.trim(); if (c[0] === "#"){ let h = c.slice(1); if (h.length === 3) h = h.split("").map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; } const m = c.match(/[\d.]+/g); return m ? m.slice(0, 3).map(Number) : [128, 128, 128]; }
+function mix(a, b, t){ const A = rgbOf(a), B = rgbOf(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",")})`; }
+const ramp = t => t < .5 ? mix(C.path, C.sf, 2 * t) : mix(C.sf, C.node, 2 * t - 1);
+const distColor = (d, dmax) => d < 0 ? C.muted : d === 0 ? C.hub : ramp(dmax > 1 ? (d - 1) / (dmax - 1) : 0);
+
+/* ---------- graphs ---------- */
+function fromData(name){ const d = DATA[name]; return build(d.n, d.e); }
+function gridGraph(W, H){ const e = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){ const i = y * W + x; if (x + 1 < W) e.push(i, i + 1); if (y + 1 < H) e.push(i, i + W); } return build(W * H, e); }
+function ringGraph(N, k){ const S = EdgeSet(N); for (let i = 0; i < N; i++) for (let j = 1; j <= k / 2; j++) S.add(i, (i + j) % N); return build(N, S.e); }
+// Watts–Strogatz with fixed random draws per link, so raising p only adds rewirings
+function wsPlan(N, k, seed){ return seeded(seed, () => { const plan = []; for (let i = 0; i < N; i++) for (let j = 1; j <= k / 2; j++) plan.push({ a: i, b: (i + j) % N, u: RNG(), t: Array.from({ length: 8 }, () => rnd(N)) }); return plan; }); }
+function wsGraph(N, plan, p){
+  const keys = new Set(), key = (a, b) => a < b ? a * N + b : b * N + a;
+  plan.forEach(e => keys.add(key(e.a, e.b)));
+  const out = [], rew = [];
+  for (const e of plan){
+    let b = e.b, moved = false;
+    if (e.u < p){ for (const t of e.t){ if (t !== e.a && !keys.has(key(e.a, t))){ keys.delete(key(e.a, e.b)); keys.add(key(e.a, t)); b = t; moved = true; break; } } }
+    out.push(e.a, b); rew.push(moved);
+  }
+  const g = build(N, out); g.rewired = rew; return g;
+}
+function genWS(N, k, p){ return wsGraph(N, wsPlan(N, k, (Math.random() * 1e9) | 0), p); }
+function cayley(k, depth){ const e = []; let layer = [0], n = 1; for (let d = 1; d <= depth; d++){ const next = []; for (const v of layer){ const kids = v === 0 ? k : k - 1; for (let c = 0; c < kids; c++){ e.push(v, n); next.push(n++); } } layer = next; } return build(n, e); }
+function bfsDist(g, s){
+  const N = g.N, d = new Int32Array(N).fill(-1), q = new Int32Array(N); let h = 0, t = 0; q[t++] = s; d[s] = 0;
+  while (h < t){ const v = q[h++]; for (let p = g.off[v]; p < g.off[v + 1]; p++){ const u = g.nbr[p]; if (d[u] < 0){ d[u] = d[v] + 1; q[t++] = u; } } }
+  return d;
+}
+function meanDist(g, sources){ let s = 0, n = 0; for (const src of sources){ const d = bfsDist(g, src); for (let i = 0; i < g.N; i++) if (d[i] > 0){ s += d[i]; n++; } } return s / n; }
+function layoutForce(g, iters = 400, L = 22){
+  const N = g.N, st = { x: new Float32Array(N), y: new Float32Array(N), vx: new Float32Array(N), vy: new Float32Array(N), alpha: 1 };
+  seeded(11, () => { for (let i = 0; i < N; i++){ const a = RNG() * 6.283, r = 80 * Math.sqrt(RNG()); st.x[i] = r * Math.cos(a); st.y[i] = r * Math.sin(a); } });
+  for (let it = 0; it < iters; it++){ forceTick(g, st, L); st.alpha = Math.max(0.02, st.alpha * 0.99); }
+  return Array.from({ length: N }, (_, i) => [st.x[i], st.y[i]]);
+}
+const circlePos = N => Array.from({ length: N }, (_, i) => [Math.cos(2 * Math.PI * i / N - Math.PI / 2), Math.sin(2 * Math.PI * i / N - Math.PI / 2)]);
+
+/* ---------- canvas network view with fixed positions ---------- */
+class NetCanvas{
+  constructor(cv, o){ this.cv = cv; this.o = o; this.hover = -1;
+    const near = e => { if (!this.sx) return -1; const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = -1, bd = 196;
+      for (let i = 0; i < this.g.N; i++){ const dx = this.sx[i] - mx, dy = this.sy[i] - my, d = dx * dx + dy * dy; if (d < bd){ bd = d; best = i; } } return best; };
+    cv.addEventListener("pointermove", e => { const i = near(e); if (i !== this.hover){ this.hover = i; this.draw(); }
+      if (i >= 0 && o.tip){ tip.innerHTML = o.tip(i); tip.style.left = Math.min(e.clientX + 12, innerWidth - 260) + "px"; tip.style.top = (e.clientY - 34) + "px"; tip.style.opacity = 1; } else tip.style.opacity = 0; });
+    cv.addEventListener("pointerdown", e => { const i = near(e); if (i >= 0 && o.onPick) o.onPick(i); });
+    cv.addEventListener("pointerleave", () => { this.hover = -1; tip.style.opacity = 0; this.draw(); });
+  }
+  set(g, pos){ this.g = g; this.pos = pos; this.draw(); }
+  draw(){
+    const g = this.g; if (!g) return;
+    const { ctx, w, h } = setup(this.cv), N = g.N, P = this.pos, o = this.o;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of P){ x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const m = o.margin || 18, sc = Math.min((w - 2 * m) / (x1 - x0 || 1), (h - 2 * m) / (y1 - y0 || 1)), ox = (w - (x1 - x0) * sc) / 2, oy = (h - (y1 - y0) * sc) / 2;
+    if (!this.sx || this.sx.length !== N){ this.sx = new Float32Array(N); this.sy = new Float32Array(N); }
+    for (let i = 0; i < N; i++){ this.sx[i] = ox + (P[i][0] - x0) * sc; this.sy[i] = oy + (P[i][1] - y0) * sc; }
+    const E = g.edges, sx = this.sx, sy = this.sy;
+    for (let e = 0; e < E.length; e += 2){
+      const st = o.edge ? o.edge(e / 2) : null;
+      ctx.strokeStyle = st && st.color ? (C[st.color] || st.color) : C.edge; ctx.lineWidth = st && st.width ? st.width : 1;
+      ctx.beginPath(); ctx.moveTo(sx[E[e]], sy[E[e]]); ctx.lineTo(sx[E[e + 1]], sy[E[e + 1]]); ctx.stroke();
+    }
+    const r0 = o.r ? o.r(w, N) : Math.max(2, Math.min(9, 120 / Math.sqrt(N))) * Math.min(1.4, w / 420);
+    for (let i = 0; i < N; i++){
+      const st = o.node(i); ctx.beginPath(); ctx.arc(sx[i], sy[i], r0 * (st.scale || 1), 0, 7);
+      if (st.hollow){ ctx.fillStyle = C.sheet; ctx.fill(); ctx.lineWidth = 1.6; ctx.strokeStyle = C.muted; ctx.stroke(); }
+      else { ctx.globalAlpha = st.alpha == null ? 1 : st.alpha; ctx.fillStyle = C[st.color] || st.color; ctx.fill(); ctx.globalAlpha = 1; }
+      if (i === this.hover || st.ring){ ctx.lineWidth = 2.2; ctx.strokeStyle = C.ink; ctx.stroke(); }
+    }
+    if (o.labels){ ctx.font = "600 13px " + bodyFont(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = C.sheet; for (let i = 0; i < N; i++) ctx.fillText(o.labels(i), sx[i], sy[i] + 1); }
+  }
+}
+
+/* ---------- generic SVG network ---------- */
+function svgNet(svg, o){
+  const act = e => { const n = e.target.closest("[data-n]"); if (n && o.onNode) return o.onNode(+n.dataset.n); const l = e.target.closest("[data-e]"); if (l && o.onEdge) o.onEdge(+l.dataset.e); };
+  svg.addEventListener("click", act);
+  svg.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.closest("[data-n],[data-e]")){ e.preventDefault(); act(e); } });
+  return function render(s){
+    const fa = document.activeElement, keep = fa && svg.contains(fa) ? (fa.dataset.n !== undefined ? `[data-n="${fa.dataset.n}"]` : `[data-e="${fa.dataset.e}"]`) : null;
+    svg.textContent = "";
+    if (s.viewBox) svg.setAttribute("viewBox", s.viewBox);
+    const defs = svgEl("defs", {}, svg);
+    ["path", "ink", "muted"].forEach(c => { const mk = svgEl("marker", { id: `${svg.id}-arr-${c}`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs); svgEl("path", { d: "M0,0 L10,5 L0,10 z", style: `fill:var(--${c})` }, mk); });
+    const R = s.r || 18;
+    s.edges.forEach(([a, b], e) => {
+      const st = s.edge ? s.edge(e) : {}; if (st.hide) return;
+      const [x1, y1] = s.pos[a], [x2, y2] = s.pos[b], L = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / L, uy = (y2 - y1) / L;
+      const ra = s.rad ? s.rad(a) : R, rb = s.rad ? s.rad(b) : R, arrow = st.arrow || (s.directed && !st.noArrow);
+      const line = { x1: x1 + ux * (arrow ? ra : 0), y1: y1 + uy * (arrow ? ra : 0), x2: x2 - ux * (arrow ? rb + 2 : 0), y2: y2 - uy * (arrow ? rb + 2 : 0) };
+      const col = st.color || "muted";
+      const sty = `fill:none;stroke:var(--${col});stroke-width:${st.width || 2};stroke-opacity:${st.op == null ? .8 : st.op};${st.dash ? "stroke-dasharray:6 5;" : ""}stroke-linecap:round`;
+      // a curved link bows sideways so it does not run through nodes lying on the straight line
+      const d = st.curve ? `M${x1},${y1} Q${(x1 + x2) / 2 - uy * L * st.curve},${(y1 + y2) / 2 + ux * L * st.curve} ${x2},${y2}` : null;
+      if (d) svgEl("path", { d, style: sty }, svg);
+      else svgEl("line", Object.assign({}, line, { style: sty, "marker-end": arrow ? `url(#${svg.id}-arr-${["path", "ink"].includes(col) ? col : "muted"})` : "" }), svg);
+      if (s.hitEdges) svgEl(d ? "path" : "line", Object.assign({ "data-e": e, tabindex: 0, role: "button", "aria-label": s.edgeAria ? s.edgeAria(e) : `Link ${a + 1}–${b + 1}`, style: "fill:none;stroke:transparent;stroke-width:16" }, d ? { d } : { x1, y1, x2, y2 }), svg);
+    });
+    s.pos.forEach(([x, y], i) => {
+      const st = s.node(i), r = s.rad ? s.rad(i) : R;
+      const g = svgEl("g", { "data-n": i, tabindex: s.clickNodes === false ? -1 : 0, role: "button", "aria-label": st.aria || `Node ${i + 1}`, style: s.clickNodes === false ? "cursor:default" : "" }, svg);
+      svgEl("circle", { cx: x, cy: y, r: r + 5, style: "fill:transparent" }, g);
+      svgEl("circle", { class: "body", cx: x, cy: y, r, style: `fill:${st.fill ? `var(--${st.fill})` : "var(--sheet)"};fill-opacity:${st.fillOp == null ? 1 : st.fillOp};stroke:var(--${st.stroke || "ink"});stroke-width:${st.sw || 2.5};${st.dashStroke ? "stroke-dasharray:4 3;" : ""}` }, g);
+      if (st.text != null){ const t = svgEl("text", { x, y: y + 1, "text-anchor": "middle", "dominant-baseline": "middle", style: `fill:var(--${st.textColor || "ink"});font:600 ${st.fs || 14}px var(--body);pointer-events:none` }, g); t.textContent = st.text; }
+      if (st.label){ const [dx, dy] = st.labelAt || [0, -r - 9]; const t = svgEl("text", { x: x + dx, y: y + dy, "text-anchor": "middle", style: `fill:var(--${st.labelColor || "muted"});font:${st.labelColor ? 700 : 500} 13px var(--body);pointer-events:none;paint-order:stroke;stroke:var(--sheet);stroke-width:4px` }, g); t.textContent = st.label; }
+    });
+    if (keep){ const el = svg.querySelector(keep); if (el) el.focus({ preventScroll: true }); }
+  };
+}
+
+/* ---------- hero: distance from one person ---------- */
+const H = { cache: {} };
+function heroNet(t){
+  if (H.cache[t]) return H.cache[t];
+  let g, pos;
+  if (t === "lattice"){ g = gridGraph(20, 20); pos = Array.from({ length: 400 }, (_, i) => [i % 20, (i / 20) | 0]); }
+  else if (t === "ring"){ g = ringGraph(400, 4); pos = circlePos(400); }
+  else if (t === "ws"){ g = wsGraph(400, wsPlan(400, 4, 5), 0.05); pos = circlePos(400); }
+  else if (t === "er"){ g = seeded(3, () => largestComponent(genER(400, 4))); pos = layoutForce(g, 350, 18); }
+  else { g = fromData("karate"); pos = layoutForce(g, 400, 40); }
+  let sum = 0, n = 0, diam = 0;
+  for (let s = 0; s < g.N; s++){ const d = bfsDist(g, s); for (let i = 0; i < g.N; i++) if (d[i] > 0){ sum += d[i]; n++; if (d[i] > diam) diam = d[i]; } }
+  return (H.cache[t] = { g, pos, mean: sum / n, diam });
+}
+const hView = new NetCanvas($("hCv"), {
+  node: i => ({ color: distColor(H.d[i], H.dmax), scale: i === H.src ? 1.7 : 1 }),
+  edge: () => null, tip: i => `node ${i + 1}: ${H.d[i]} step${H.d[i] === 1 ? "" : "s"} away`,
+  onPick: i => { H.src = i; hDraw(); }
+});
+function hLoad(){ const t = $("hNet").value, net = heroNet(t); H.net = net; H.t = t; H.src = t === "lattice" ? 210 : t === "karate" ? 0 : (net.g.N / 2) | 0; H.d = bfsDist(net.g, H.src); H.dmax = Math.max(...H.d); hView.set(net.g, net.pos); hDraw(); }
+function hDraw(){
+  const { g, mean, diam } = H.net; H.d = bfsDist(g, H.src); H.dmax = Math.max(...H.d);
+  hView.draw();
+  const counts = new Array(H.dmax + 1).fill(0); H.d.forEach(v => { if (v >= 0) counts[v]++; });
+  let s = 0; H.d.forEach(v => { if (v > 0) s += v; });
+  plot($("hHist"), { x: { min: 0.5, max: H.dmax + .5, label: "steps away", n: Math.min(8, H.dmax) }, y: { min: 0, max: Math.max(...counts.slice(1)) * 1.15, label: "number of people" },
+    series: [{ type: "bars", pts: counts.map((c, d) => [d - .45, d + .45, d ? c : 0]), color: "path" }] });
+  $("hNote").innerHTML = `From node ${H.src + 1}: everyone is within <b>${H.dmax}</b> steps, ${(s / (g.N - 1)).toFixed(2)} on average. Over all pairs, ⟨ℓ⟩ = ${mean.toFixed(2)} and the diameter is ${diam}.`;
+  const all = ["lattice", "ring", "ws", "er"].map(t => [t, heroNet(t)]);
+  const nm = { lattice: "the 2D lattice", ring: "the ring lattice", ws: "the rewired ring", er: "random links" };
+  setMath($("hText"), String.raw`Same 400 people, about four friends each: \(\langle\ell\rangle\) = ${all.map(([t, n]) => `${n.mean.toFixed(1)} for ${nm[t]}`).join(", ")}. Moving just 5% of the ring’s links cuts its average distance by a factor of ${(all[1][1].mean / all[2][1].mean).toFixed(0)}.`);
+}
+$("hNet").addEventListener("change", hLoad);
+$("hFar").addEventListener("click", () => { H.src = rnd(H.net.g.N); hDraw(); });
+
+/* ---------- trees ---------- */
+const T0 = [[0,1],[0,2],[1,3],[1,4],[1,5],[2,6],[2,7],[3,8],[3,9],[4,10],[6,11],[6,12],[7,13],[7,14]];
+const T = { root: 0, cut: new Set(), extra: [] };
+const tRender = svgNet($("tSvg"), {
+  onNode: i => { T.root = i; tDraw(); },
+  onEdge: e => { if (e < T0.length){ T.cut.has(e) ? T.cut.delete(e) : T.cut.add(e); } else T.extra.splice(e - T0.length, 1); tDraw(); }
+});
+function tDraw(){
+  const N = 15, all = T0.concat(T.extra), active = all.map((_, e) => !(e < T0.length && T.cut.has(e)));
+  const adj = Array.from({ length: N }, () => []); all.forEach(([a, b], e) => { if (active[e]){ adj[a].push(b); adj[b].push(a); } });
+  adj.forEach(l => l.sort((a, b) => a - b));
+  // components and a layered layout per component (BFS from the root, or the smallest label)
+  const comp = new Int32Array(N).fill(-1), depth = new Int32Array(N), parent = new Int32Array(N).fill(-1), order = [];
+  let nc = 0;
+  const starts = [T.root, ...Array.from({ length: N }, (_, i) => i)];
+  const kids = Array.from({ length: N }, () => []);
+  for (const s of starts){
+    if (comp[s] >= 0) continue;
+    const q = [s]; comp[s] = nc; depth[s] = 0; order.push([]);
+    while (q.length){ const v = q.shift(); order[nc].push(v); for (const u of adj[v]) if (comp[u] < 0){ comp[u] = nc; depth[u] = depth[v] + 1; parent[u] = v; kids[v].push(u); q.push(u); } }
+    nc++;
+  }
+  const xs = new Float64Array(N); let leaf = 0;
+  const place = v => { if (!kids[v].length){ xs[v] = leaf++; return; } kids[v].forEach(place); xs[v] = (xs[kids[v][0]] + xs[kids[v][kids[v].length - 1]]) / 2; };
+  const roots = order.map(o => o[0]);
+  roots.forEach((r, c) => { if (c) leaf += 0.8; place(r); });
+  const maxD = Math.max(...depth), W = 620, span = Math.max(1, leaf - 1), Hh = 70 + maxD * 78;
+  const pos = Array.from({ length: N }, (_, i) => [40 + xs[i] / span * (W - 80), 40 + depth[i] * 78]);
+  // cycle detection: an extra link closes a cycle if it joins two nodes of one component
+  // a forest with nc pieces has exactly N - nc links; every link beyond that closes a cycle
+  const L = active.filter(Boolean).length, nCyc = L - (N - nc);
+  const isTree = nc === 1 && L === N - 1;
+  tRender({
+    viewBox: `0 0 ${W} ${Hh}`, pos, edges: all, hitEdges: true, r: 15,
+    edge: e => !active[e] ? { color: "muted", dash: true, op: .45, width: 2 } : e >= T0.length ? { color: nCyc ? "hub" : "ink", dash: !!nCyc, width: 3, op: nCyc ? 1 : .75, curve: .22 } : { color: "ink", width: 2.5, op: .75 },
+    edgeAria: e => `${active[e] ? "Cut" : "Restore"} link ${all[e][0] + 1}–${all[e][1] + 1}`,
+    node: i => ({ fill: i === T.root ? "hub" : comp[i] === 0 ? "node" : "path", fillOp: i === T.root ? 1 : .85, stroke: i === T.root ? "hub" : comp[i] === 0 ? "node" : "path", text: String(i + 1), textColor: "sheet", fs: 12,
+      label: kids[i].length === 0 && i !== T.root && comp[i] === 0 ? "" : "", aria: `Node ${i + 1}, layer ${depth[i]}` })
+  });
+  const layers = Array.from({ length: maxD + 1 }, (_, d) => Array.from({ length: N }, (_, i) => i).filter(i => comp[i] === 0 && depth[i] === d).length).filter(Boolean);
+  const leaves = Array.from({ length: N }, (_, i) => i).filter(i => comp[i] === 0 && i !== T.root && kids[i].length === 0 && adj[i].length === 1).length;
+  setMath($("tStat"), String.raw`<div>Nodes \(N\)</div><div>${N}</div><div>Links \(L\)</div><div>${L}</div><div>\(N-1\)</div><div>${N - 1}</div>
+    <div>Connected pieces</div><div>${nc}</div><div>Independent cycles \(L - N + \text{pieces}\)</div><div>${nCyc}</div>
+    <div class="sep"></div><div>Is it a tree?</div><div style="color:var(--${isTree ? "er" : "hub"})">${isTree ? "yes" : "no"}</div>
+    <div>Nodes per layer from the root</div><div>${layers.join(", ")}</div><div>Leaves</div><div>${leaves}</div>`);
+  setMath($("tText"), isTree ? String.raw`A tree: connected, no cycle, and \(L = N - 1 = ${N - 1}\). Rooted at node ${T.root + 1}, the deepest layer is ${maxD} steps away.` :
+    nCyc && nc === 1 ? String.raw`The extra link${nCyc > 1 ? "s close cycles" : " closes a cycle"}, so \(L = ${L} > N - 1\) and the network is no longer a tree. Removing one link from each cycle would make it a tree again.` :
+    nc > 1 && !nCyc ? String.raw`Cutting ${T.cut.size} link${T.cut.size > 1 ? "s" : ""} split it into ${nc} pieces: \(L = ${L} < N - 1\). In a tree every link is a bridge.` :
+    String.raw`Now there are ${nc} pieces and a cycle: \(L = ${L}\), and it is not a tree.`);
+}
+$("tAdd").addEventListener("click", () => {
+  const all = T0.concat(T.extra), has = new Set(all.map(([a, b]) => Math.min(a, b) * 100 + Math.max(a, b)));
+  for (let t = 0; t < 200; t++){ const a = rnd(15), b = rnd(15); if (a !== b && !has.has(Math.min(a, b) * 100 + Math.max(a, b))){ T.extra.push([a, b]); break; } }
+  tDraw();
+});
+$("tReset").addEventListener("click", () => { T.root = 0; T.cut.clear(); T.extra = []; tDraw(); });
+
+/* ---------- breadth-first search, step by step ---------- */
+const BP = [[280,195],[195,140],[365,140],[300,280],[105,85],[150,260],[255,55],[420,55],[480,205],[410,330],[205,340],[50,180],[530,95]];
+const BE = [[0,1],[0,2],[0,3],[1,4],[1,5],[1,6],[2,6],[2,7],[2,8],[3,9],[3,10],[3,8],[5,10],[4,11],[5,11],[7,12],[8,12],[6,7]];
+const bG = build(13, BE.flat());
+const B = { src: 0 };
+const bRender = svgNet($("bSvg"), { onNode: i => { B.src = i; bInit(); } });
+function bInit(){ clearInterval(B.timer); B.timer = 0; $("bPlay").textContent = "Play";
+  B.dist = new Array(13).fill(-1); B.dist[B.src] = 0; B.q = [B.src]; B.tree = []; B.cur = -1; B.fresh = []; B.seen = []; B.phase = 0; B.done = false;
+  B.msg = String.raw`Node ${B.src + 1} is the source: \(\ell = 0\). It is the only node in the frontier.`; bDraw(); }
+function bStep(){
+  if (!B.q.length){ B.done = true; B.cur = -1; B.msg = "The frontier is empty: every node has its distance, and the orange links form the shortest-path tree."; B.phase = 3; bDraw(); return false; }
+  const v = B.q.shift(); B.cur = v; B.fresh = []; B.seen = [];
+  for (let p = bG.off[v]; p < bG.off[v + 1]; p++){ const u = bG.nbr[p]; if (B.dist[u] < 0){ B.dist[u] = B.dist[v] + 1; B.q.push(u); B.tree.push([v, u]); B.fresh.push(u); } else B.seen.push(u); }
+  B.fresh.sort((a, b) => a - b); B.q = B.q.slice(0, B.q.length - B.fresh.length).concat(B.fresh);
+  const names = a => a.map(x => x + 1).join(", ");
+  B.msg = String.raw`Take node ${v + 1} out (\(\ell = ${B.dist[v]}\)). ` + (B.fresh.length ? String.raw`New neighbor${B.fresh.length > 1 ? "s" : ""} ${names(B.fresh)} get${B.fresh.length > 1 ? "" : "s"} \(\ell = ${B.dist[v] + 1}\) and join${B.fresh.length > 1 ? "" : "s"} the frontier. ` : "No new neighbors. ") + (B.seen.length ? `Neighbor${B.seen.length > 1 ? "s" : ""} ${names(B.seen)} already ${B.seen.length > 1 ? "have" : "has"} a distance.` : "");
+  B.phase = 2; bDraw(); return true;
+}
+function bDraw(){
+  const dmax = Math.max(1, ...B.dist), tree = new Set(B.tree.map(([a, b]) => a * 100 + b));
+  const edges = BE.map(([a, b]) => tree.has(a * 100 + b) ? [a, b] : tree.has(b * 100 + a) ? [b, a] : [a, b]);
+  bRender({ pos: BP, edges, r: 19,
+    edge: e => { const [a, b] = edges[e], inTree = tree.has(a * 100 + b), fromCur = B.cur >= 0 && (a === B.cur || b === B.cur);
+      return inTree ? { color: "path", width: 3.5, op: 1, arrow: true } : { color: fromCur ? "ink" : "muted", width: fromCur ? 2.5 : 2, op: fromCur ? .9 : .5 }; },
+    node: i => { const d = B.dist[i], inQ = B.q.includes(i);
+      return { fill: d < 0 ? null : d === 0 ? "hub" : "path", fillOp: d <= 0 ? 1 : Math.max(.25, 1 - (d - 1) / (dmax + 1) * .9), stroke: i === B.cur ? "ink" : d === 0 ? "hub" : inQ ? "path" : d < 0 ? "muted" : "path",
+        sw: i === B.cur ? 4.5 : 2.5, dashStroke: inQ && i !== B.src, text: d < 0 ? "?" : String(d), textColor: d < 0 ? "muted" : d === 0 || d === 1 ? "sheet" : "ink", label: `${i + 1}`, labelAt: [0, -28], aria: `Node ${i + 1}, distance ${d < 0 ? "unknown" : d}` }; } });
+  $("bQueue").innerHTML = B.q.length ? B.q.map((v, k) => `<span class="chip${k ? "" : " head"}">${v + 1}</span>`).join("") : `<span class="note" style="margin:0">empty</span>`;
+  setMath($("bLog"), B.msg);
+  document.querySelectorAll("#bAlgo li").forEach((li, k) => li.classList.toggle("on", k === (B.phase === 0 ? 0 : B.phase === 2 ? 2 : 3)));
+  $("bStep").disabled = B.done;
+}
+$("bStep").addEventListener("click", () => { clearInterval(B.timer); B.timer = 0; $("bPlay").textContent = "Play"; bStep(); });
+$("bReset").addEventListener("click", bInit);
+$("bPlay").addEventListener("click", () => {
+  if (B.timer){ clearInterval(B.timer); B.timer = 0; $("bPlay").textContent = "Play"; return; }
+  if (B.done) bInit();
+  $("bPlay").textContent = "Pause";
+  B.timer = setInterval(() => { if (!bStep()){ clearInterval(B.timer); B.timer = 0; $("bPlay").textContent = "Play"; } }, 1100);
+});
+
+/* ---------- directed distances ---------- */
+const DP = [[70,120],[200,50],[200,165],[300,230],[355,90],[390,290],[465,165]];
+const DE = [[0,1],[1,2],[0,2],[2,0],[2,6],[3,2],[3,4],[3,5],[4,5],[4,6],[6,4],[5,6]];
+const D = { src: 0, tgt: 5 };
+const dN = 7, dOut = Array.from({ length: dN }, () => []); DE.forEach(([a, b]) => dOut[a].push(b));
+function dBfs(s){ const d = new Array(dN).fill(-1), par = new Array(dN).fill(-1), q = [s]; d[s] = 0; while (q.length){ const v = q.shift(); for (const u of dOut[v]) if (d[u] < 0){ d[u] = d[v] + 1; par[u] = v; q.push(u); } } return { d, par }; }
+const dAll = Array.from({ length: dN }, (_, s) => dBfs(s));
+const dRender = svgNet($("dSvg"), { onNode: i => { if (i === D.src) return; D.src = i; D.tgt = -1; dDraw(); } });
+function dDraw(){
+  const { d, par } = dAll[D.src], path = new Set();
+  if (D.tgt >= 0 && d[D.tgt] > 0){ let v = D.tgt; while (par[v] >= 0){ path.add(par[v] * 10 + v); v = par[v]; } }
+  dRender({ pos: DP, edges: DE, directed: true, r: 20,
+    edge: e => { const [a, b] = DE[e]; return path.has(a * 10 + b) ? { color: "path", width: 4, op: 1 } : { color: "ink", width: 2, op: .55 }; },
+    node: i => ({ fill: i === D.src ? "hub" : i === D.tgt ? "path" : null, stroke: i === D.src ? "hub" : i === D.tgt ? "path" : d[i] < 0 ? "muted" : "ink", text: String(i + 1), textColor: i === D.src || i === D.tgt ? "sheet" : d[i] < 0 ? "muted" : "ink" }) });
+  let html = "<tr><th></th>" + Array.from({ length: dN }, (_, j) => `<th>${j + 1}</th>`).join("") + "</tr>";
+  for (let i = 0; i < dN; i++){ html += `<tr class="${i === D.src ? "src" : ""}"><th>${i + 1}</th>`;
+    for (let j = 0; j < dN; j++){ const v = dAll[i].d[j]; html += i === j ? "<td>–</td>" : `<td data-i="${i}" data-j="${j}" class="${v < 0 ? "inf" : ""}${i === D.src && j === D.tgt ? " tgt" : ""}">${v < 0 ? "∞" : v}</td>`; }
+    html += "</tr>"; }
+  $("dMat").innerHTML = html;
+  let s = 0, n = 0, inf = 0; dAll.forEach(({ d }, i) => d.forEach((v, j) => { if (i !== j){ if (v > 0){ s += v; n++; } else inf++; } }));
+  const tgtTxt = D.tgt >= 0 ? (d[D.tgt] < 0 ? String.raw`Node ${D.tgt + 1} cannot be reached from node ${D.src + 1}: \(\ell(${D.src + 1}\to ${D.tgt + 1}) = \infty\). ` :
+    String.raw`\(\ell(${D.src + 1}\to ${D.tgt + 1}) = ${d[D.tgt]}\), while \(\ell(${D.tgt + 1}\to ${D.src + 1}) = ${dAll[D.tgt].d[D.src] < 0 ? "\\infty" : dAll[D.tgt].d[D.src]}\). `) : "Pick a cell to see the path. ";
+  setMath($("dText"), tgtTxt + String.raw`Of the \(N(N-1) = 42\) ordered pairs, ${inf} are unreachable, so \(\langle\ell\rangle\) is infinite. Averaging over the ${n} reachable pairs alone gives ${(s / n).toFixed(2)}.`);
+}
+$("dMat").addEventListener("click", e => { const c = e.target.closest("td[data-i]"); if (!c) return; D.src = +c.dataset.i; D.tgt = +c.dataset.j; dDraw(); });
+
+/* ---------- scaling of the average path length ---------- */
+const SC = { data: { ring: [], lattice: [], ws: [], er: [] }, tok: 0 };
+async function sRun(){
+  const tok = ++SC.tok, Ns = [100, 300, 1000, 3000, 10000, 30000, 100000];
+  for (const N of Ns){
+    $("sStatus").textContent = `Measuring N = ${N.toLocaleString("en-US")}…`; await pause(); if (tok !== SC.tok) return;
+    const side = Math.round(Math.sqrt(N)), nets = { ring: ringGraph(N, 4), lattice: gridGraph(side, side), ws: genWS(N, 4, 0.05), er: largestComponent(genER(N, 4)) };
+    for (const [k, g] of Object.entries(nets)){ const src = Array.from({ length: Math.min(30, g.N) }, () => rnd(g.N)); SC.data[k].push([N, meanDist(g, src)]); }
+    sDraw();
+  }
+  $("sStatus").textContent = "Each point averages breadth-first searches from 30 random sources.";
+}
+function sDraw(){
+  const logy = radioVal("sAx") === "log", d = SC.data; if (!d.er.length) return;
+  const ref = [], N = []; for (let e = 2; e <= 5.001; e += 0.1) N.push(Math.pow(10, e));
+  const series = [
+    { type: "line", pts: N.map(n => [n, n / 8]), color: "node", dash: true, width: 1.2 },
+    { type: "line", pts: N.map(n => [n, 2 / 3 * Math.sqrt(n)]), color: "path", dash: true, width: 1.2 },
+    { type: "line", pts: N.map(n => [n, Math.log(n) / Math.log(4)]), color: "er", dash: true, width: 1.2 }
+  ];
+  for (const [k, col] of [["ring", "node"], ["lattice", "path"], ["ws", "sf"], ["er", "er"]]) series.push({ type: "line", pts: d[k], color: col }, { type: "dots", pts: d[k], color: col, r: 3.5 });
+  const ymax = logy ? 2e4 : Math.max(40, ...d.lattice.map(p => p[1])) * 1.1;
+  plot($("sCv"), { x: { log: true, min: 100, max: 1e5, label: "number of nodes *N*" }, y: logy ? { log: true, min: 1, max: ymax, label: "average path length ⟨*ℓ*⟩" } : { min: 0, max: ymax, label: "average path length ⟨*ℓ*⟩" }, series });
+  const last = k => d[k][d[k].length - 1];
+  if (d.er.length >= 2){ const a = d.er[0], b = last("er"), la = d.lattice[0], lb = last("lattice");
+    setMath($("sText"), String.raw`From \(N\approx ${a[0]}\) to \(${b[0].toLocaleString("en-US")}\), random links take \(\langle\ell\rangle\) from ${a[1].toFixed(1)} to ${b[1].toFixed(1)}, while the 2D lattice goes from ${la[1].toFixed(1)} to ${lb[1].toFixed(1)}${d.ring.length ? ` and the ring from ${d.ring[0][1].toFixed(1)} to ${last("ring")[1].toFixed(0)}` : ""}. On logarithmic axes the lattice is a line of slope ½; the random network is almost flat.`); }
+}
+document.querySelectorAll('input[name="sAx"]').forEach(r => r.addEventListener("change", sDraw));
+
+function aDraw(){
+  const a = Math.pow(10, +$("aIn").value); $("aOut").textContent = a.toFixed(a < 0.1 ? 3 : 2);
+  // crossover: α ln N = ln ln N, i.e. αx = ln x with x = ln N (largest root)
+  let x = null; if (a < 1 / Math.E){ x = 3 / a; for (let k = 0; k < 200; k++) x = Math.log(x) / a; }
+  const log10N = x ? x / Math.LN10 : null, maxE = Math.min(300, Math.max(20, log10N ? Math.ceil(log10N * 1.3) : 20));
+  const pts = []; for (let e = 0; e <= maxE; e += maxE / 300) pts.push(e);
+  // work in log10 N on the horizontal axis so astronomically large N can be drawn
+  plot($("aCv"), { x: { min: 0, max: maxE, label: "log₁₀ *N*", fmt: v => (+v.toFixed(0)).toString() }, y: { log: true, min: 1, max: Math.pow(10, Math.min(60, Math.ceil(Math.max(Math.log10(maxE * Math.LN10), a * maxE) + 0.3))), label: "value" },
+    series: [{ type: "line", pts: pts.map(e => [e, e * Math.LN10]), color: "er", width: 2.6 }, { type: "line", pts: pts.map(e => [e, Math.pow(10, a * e)]), color: "path", width: 2.6 }],
+    after: (ctx, X, Y, w, h, p) => { if (!log10N) return; ctx.strokeStyle = C.hub; ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(X(log10N), p.t); ctx.lineTo(X(log10N), h - p.b); ctx.stroke(); ctx.setLineDash([]); } });
+  setMath($("aText"), x ? String.raw`With \(\alpha = ${a.toFixed(a < 0.1 ? 3 : 2)}\), \(N^\alpha\) stays below \(\ln N\) until \(N \approx 10^{${log10N.toFixed(0)}}\). For comparison, the number of people on Earth is about \(10^{10}\) and of atoms in the observable universe about \(10^{80}\).` :
+    String.raw`With \(\alpha = ${a.toFixed(2)} > 1/e\), \(N^\alpha\) is larger than \(\ln N\) for every \(N\).`);
+}
+$("aIn").addEventListener("input", aDraw);
+
+/* ---------- layer growth ---------- */
+const W = { cache: {} };
+function wNet(t){
+  if (W.cache[t]) return W.cache[t];
+  const g = t === "cayley" ? cayley(3, 12) : t === "er" ? largestComponent(genER(10000, 4)) : t === "ws" ? genWS(10000, 4, 0.05) : gridGraph(100, 100);
+  return (W.cache[t] = g);
+}
+function wDraw(newSrc){
+  const t = $("wNet").value, g = wNet(t);
+  if (newSrc || W.t !== t){ W.t = t; W.src = t === "cayley" && !newSrc ? 0 : t === "lattice" && !newSrc ? 5050 : rnd(g.N); }
+  const d = bfsDist(g, W.src), dmax = Math.max(...d), cnt = new Array(dmax + 1).fill(0); d.forEach(v => { if (v >= 0) cnt[v]++; });
+  let s1 = 0, s2 = 0; g.deg.forEach(k => { s1 += k; s2 += k * k; }); const km = s1 / g.N;
+  const pred = l => t === "lattice" ? 4 * l : t === "cayley" ? 3 * Math.pow(2, l - 1) : t === "ws" ? Math.pow(km, l) : Math.pow(km, l);
+  const ymax = Math.pow(10, Math.ceil(Math.log10(Math.max(...cnt) * 1.5)));
+  plot($("wCv"), { x: { min: 0.5, max: dmax + .5, label: "layer (distance from the source) *n*", n: Math.min(10, dmax) }, y: { log: true, min: 1, max: ymax, label: "nodes in layer *n*" },
+    series: [{ type: "bars", pts: cnt.map((c, n) => [n - .4, n + .4, n ? c : 0]), color: "node" },
+      { type: "line", pts: Array.from({ length: dmax * 4 + 1 }, (_, k) => 1 + k / 4).filter(l => l <= dmax + .4).map(l => [l, pred(l)]), color: "hub", dash: true, width: 2 }] });
+  let sum = 0, n = 0; d.forEach(v => { if (v > 0){ sum += v; n++; } });
+  const est = Math.log(g.N) / Math.log(t === "cayley" ? 2 : km);
+  const predName = { cayley: String.raw`\(k(k-1)^{n-1} = 3\cdot 2^{n-1}\)`, er: String.raw`\(\langle k\rangle^n\)`, ws: String.raw`\(\langle k\rangle^n\)`, lattice: String.raw`\(4n\)` }[t];
+  setMath($("wStat"), String.raw`<div>Nodes \(N\)</div><div>${g.N.toLocaleString("en-US")}</div><div>\(\langle k\rangle\)</div><div>${km.toFixed(2)}</div>
+    <div>Source</div><div>node ${W.src + 1}</div><div>Farthest layer \(\ell_\text{max}\)</div><div>${dmax}</div><div>Mean distance from the source</div><div>${(sum / n).toFixed(2)}</div>
+    <div class="sep"></div><div>Tree estimate \(\ln N/\ln ${t === "cayley" ? "(k-1)" : "\\langle k\\rangle"}\)</div><div>${est.toFixed(1)}</div><div>Prediction in the chart</div><div>${predName}</div>`);
+  const T = {
+    cayley: "From the root the counts follow 3, 6, 12, 24, … exactly, until the leaves. Pick another source and the layers first shrink toward the leaves, then grow again through the root.",
+    er: "Layer sizes multiply by roughly ⟨k⟩ each step until the network is used up. Loops are rare at first, so the crude tree estimate is close.",
+    ws: "The ring alone would add only about 4 nodes per layer; the few rewired links act as shortcuts, and the growth turns exponential after a few steps.",
+    lattice: "Layers grow only linearly, about 4n, because neighbors share neighbors. That is why the lattice needs about √N steps instead of log N."
+  };
+  $("wText").textContent = T[t];
+}
+$("wNet").addEventListener("change", () => wDraw(false));
+$("wSrc").addEventListener("click", () => wDraw(true));
+
+/* ---------- Watts–Strogatz ---------- */
+const WS = { plan30: wsPlan(20, 4, 21), curve: null, plans: null };
+const wsRing = new NetCanvas($("wsRing"), {
+  node: () => ({ color: "node" }), edge: e => WS.g30.rewired[e] ? { color: "hub", width: 2 } : { color: "muted", width: 1.4 }, margin: 22,
+  r: w => Math.max(4, w / 70)
+});
+function clustering(g){
+  const N = g.N, nb = Array.from({ length: N }, (_, i) => new Set(g.nbr.subarray(g.off[i], g.off[i + 1])));
+  const Ci = new Float64Array(N), tri = new Float64Array(N);
+  for (let i = 0; i < N; i++){ const L = [...nb[i]]; let t = 0; for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) if (nb[L[a]].has(L[b])) t++; tri[i] = t; Ci[i] = L.length > 1 ? 2 * t / (L.length * (L.length - 1)) : NaN; }
+  let sC = 0, nC = 0, sAll = 0, triads = 0, triangles = 0;
+  for (let i = 0; i < N; i++){ const k = g.deg[i]; if (k > 1){ sC += Ci[i]; nC++; sAll += Ci[i]; } triads += k * (k - 1) / 2; triangles += tri[i]; }
+  triangles /= 3;
+  return { Ci, tri, C: sC / nC, Cnx: sAll / N, nC, triangles, triads, T: triads ? 3 * triangles / triads : 0 };
+}
+async function wsCurve(){
+  const N = 1000, k = 10, ps = []; for (let e = -4; e <= 0.001; e += 0.25) ps.push(Math.pow(10, e));
+  WS.plans = [1, 2].map(s => wsPlan(N, k, 100 + s));
+  const g0 = wsGraph(N, WS.plans[0], 0), src = Array.from({ length: 80 }, () => rnd(N));
+  WS.C0 = clustering(g0).C; WS.L0 = meanDist(g0, src); WS.src = src; WS.curve = [];
+  for (const p of ps){
+    $("wsStatus").textContent = `Computing p = ${p.toPrecision(2)}…`; await pause();
+    let c = 0, l = 0; for (const plan of WS.plans){ const g = wsGraph(N, plan, p), lc = largestComponent(g); c += clustering(g).C; l += meanDist(lc, src.filter(s => s < lc.N)); }
+    WS.curve.push([p, c / 2 / WS.C0, l / 2 / WS.L0]); wsDraw();
+  }
+  $("wsStatus").textContent = "Each point averages two networks; path lengths use breadth-first searches from 80 sources.";
+}
+function wsDraw(){
+  const p = Math.pow(10, +$("pIn").value); $("pOut").textContent = p < 0.001 ? p.toExponential(1) : p.toFixed(3);
+  WS.g30 = wsGraph(20, WS.plan30, p); wsRing.set(WS.g30, circlePos(20));
+  if (!WS.curve) return;
+  const g = wsGraph(1000, WS.plans[0], p), cur = [clustering(g).C / WS.C0, meanDist(largestComponent(g), WS.src) / WS.L0];
+  plot($("wsCv"), { x: { log: true, min: 1e-4, max: 1, label: "rewiring probability *p*" }, y: { min: 0, max: 1.05, label: "relative to *p* = 0", fmt: v => (+v.toFixed(1)).toString() },
+    series: [{ type: "dots", pts: WS.curve.map(r => [r[0], r[1]]), color: "path", r: 4 }, { type: "dots", pts: WS.curve.map(r => [r[0], r[2]]), color: "node", r: 4 },
+      { type: "dots", pts: [[p, cur[0]]], color: "hub", r: 7, shape: "diamond" }, { type: "dots", pts: [[p, cur[1]]], color: "hub", r: 7, shape: "diamond" }],
+    after: (ctx, X, Y, w, h, pd) => { ctx.strokeStyle = C.hub; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(X(p), pd.t); ctx.lineTo(X(p), h - pd.b); ctx.stroke(); ctx.setLineDash([]); } });
+  const nre = WS.g30.rewired.filter(Boolean).length;
+  setMath($("wsText"), String.raw`At \(p = ${p < 0.001 ? p.toExponential(1) : p.toFixed(3)}\), the 1,000-node network keeps ${Math.round(cur[0] * 100)}% of its clustering but only ${Math.round(cur[1] * 100)}% of its path length. ${cur[0] > .7 && cur[1] < .5 ? "This is the small-world window: clustered like a lattice, short like a random network." : cur[1] > .8 ? "Too few shortcuts yet: still a large world." : "Most local triangles are gone: this is close to a random network."} (${nre} of the 40 links on the left ${nre === 1 ? "is" : "are"} rewired.)`);
+}
+$("pIn").addEventListener("input", wsDraw);
+
+/* ---------- clustering of one node ---------- */
+const EG = { k: 4, on: new Set(["0-1", "2-3"]) };
+const eRender = svgNet($("eSvg"), { onEdge: e => { const key = EG.cand[e]; if (!key) return; EG.on.has(key) ? EG.on.delete(key) : EG.on.add(key); eDraw(); } });
+function eDraw(){
+  const k = EG.k; $("eKOut").textContent = k;
+  const pos = [[210, 255]], R = 195; for (let a = 0; a < k; a++){ const t = Math.PI * (1.1 + 0.8 * a / (k - 1)); pos.push([210 + R * Math.cos(t), 255 + R * Math.sin(t)]); }
+  const edges = [], cand = []; for (let a = 0; a < k; a++){ edges.push([0, a + 1]); cand.push(null); }
+  for (let a = 0; a < k; a++) for (let b = a + 1; b < k; b++){ edges.push([a + 1, b + 1]); cand.push(`${a}-${b}`); }
+  EG.cand = cand; [...EG.on].forEach(key => { const [a, b] = key.split("-").map(Number); if (b >= k) EG.on.delete(key); });
+  eRender({ pos, edges, hitEdges: true, r: 17,
+    edge: e => cand[e] == null ? { color: "ink", width: 3, op: .85 } : EG.on.has(cand[e]) ? { color: "hub", width: 4, op: 1 } : { color: "muted", width: 2, op: .6, dash: true },
+    edgeAria: e => cand[e] == null ? "Link to i" : `${EG.on.has(cand[e]) ? "Unlink" : "Link"} friends ${cand[e].split("-").map(x => +x + 1).join(" and ")}`,
+    node: i => i === 0 ? { fill: "hub", stroke: "hub", text: "i", textColor: "sheet", fs: 16, aria: "Node i" } : { fill: "node", fillOp: .2, stroke: "node", text: String(i), aria: `Friend ${i}` }, clickNodes: false });
+  const tau = EG.on.size, max = k * (k - 1) / 2, g = gcd(tau, max) || 1;
+  setMath($("eText"), String.raw`\(\tau(i) = ${tau}\) triangle${tau === 1 ? "" : "s"} out of \(\tau_\text{max}(i) = \binom{${k}}{2} = ${max}\), so \(C(i) = \dfrac{2\times ${tau}}{${k}\times ${k - 1}} = ${tau === 0 ? "0" : tau === max ? "1" : `\\tfrac{${tau / g}}{${max / g}}`}${tau && tau !== max ? ` \\approx ${(tau / max).toFixed(3)}` : ""}\).` +
+    (tau === 0 ? " None of i’s friends know each other, as in a star or a tree." : tau === max ? " Every pair of i’s friends are friends: a fully clustered neighborhood." : ""));
+}
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+$("eKIn").addEventListener("input", e => { EG.k = +e.target.value; eDraw(); });
+
+/* ---------- clustering of whole networks ---------- */
+const CN = { cache: {} };
+const cView = new NetCanvas($("cCv"), {
+  node: i => { const c = CN.s.Ci[i]; return isNaN(c) ? { hollow: true } : { color: mix(mix(C.node, C.sheet, .6), C.hub, c) }; },
+  edge: () => null, labels: null,
+  tip: i => { const c = CN.s.Ci[i], k = CN.g.deg[i]; return `node ${i + 1}: k = ${k}, ${isNaN(c) ? "C undefined (k &lt; 2)" : `τ = ${CN.s.tri[i]}, C = ${c.toFixed(3)}`}`; }
+});
+function cLoad(){
+  const t = $("cNet").value;
+  if (!CN.cache[t]){
+    let g, pos;
+    if (t === "four"){ g = build(4, [0,1, 1,2, 2,3, 3,0, 1,3]); pos = [[0,0],[1,0],[1,1],[0,1]]; }
+    else { g = t === "ws" ? seeded(9, () => genWS(300, 6, 0.05)) : t === "er" ? seeded(9, () => largestComponent(genER(300, 6))) : fromData(t); pos = t === "ws" ? circlePos(g.N) : layoutForce(g, 400, t === "karate" ? 40 : 24); }
+    CN.cache[t] = { g, pos, s: clustering(g) };
+  }
+  const c = CN.cache[t]; CN.g = c.g; CN.s = c.s;
+  cView.o.labels = t === "four" ? (i => String(i + 1)) : null; cView.o.r = t === "four" ? (w => w / 16) : null; cView.o.margin = t === "four" ? 70 : 18;
+  cView.o.edge = t === "four" ? () => ({ color: "ink", width: 3 }) : () => null;
+  cView.set(c.g, c.pos);
+  const s = c.s, g = c.g; let s1 = 0, s2 = 0; g.deg.forEach(k => { s1 += k; s2 += k * k; }); const km = s1 / g.N;
+  const four = t === "four";
+  setMath($("cStat"), String.raw`<div>Nodes \(N\), links \(L\)</div><div>${g.N}, ${g.edges.length / 2}</div>
+    <div>Triangles</div><div>${s.triangles}</div><div>Triads \(\tfrac12(\sum k_i^2 - \sum k_i)\)</div><div>\(\tfrac12(${s2} - ${s1}) = ${s.triads}\)</div>
+    <div class="sep"></div>
+    <div style="color:var(--hub)">Clustering \(C\), over \(k>1\)</div><div style="color:var(--hub)">${four ? "5/6 ≈ 0.833" : f3(s.C)}</div>
+    <div>NetworkX <code>average_clustering</code></div><div>${f3(s.Cnx)}</div>
+    <div style="color:var(--path)">Transitivity \(T\)</div><div style="color:var(--path)">${four ? "3/4 = 0.75" : f3(s.T)}</div>
+    <div>Random links, same \(N\) and \(L\): \(\langle k\rangle/(N-1)\)</div><div>${f3(km / (g.N - 1))}</div>`);
+  const T = {
+    four: String.raw`Nodes 1 and 3 have \(C = 1\), nodes 2 and 4 have \(C = 2/3\), so \(C = (1 + 2/3 + 1 + 2/3)/4 = 5/6\). There are 2 triangles and 8 triads, so \(T = 3\times 2/8 = 3/4\). The two numbers differ because \(T\) gives more weight to the degree-3 nodes.`,
+    karate: String.raw`As on the slides: 45 triangles and 528 triads give \(T = 0.2557\), while NetworkX’s average clustering is 0.5706. The club has one member with a single friend; leaving them out raises \(C\) to ${f3(s.C)}. Random links would give about ${f3(km / (g.N - 1))}.`,
+    football: String.raw`Teams play mostly within their conference, so both numbers are high: about ${(s.C / (km / (g.N - 1))).toFixed(0)} times what random scheduling would give.`,
+    ws: String.raw`The rewired ring keeps most of the ring’s triangles: \(C\) is about ${(s.C / (km / (g.N - 1))).toFixed(0)} times the random value, yet distances are short. That combination is what Watts and Strogatz called a small world.`,
+    er: String.raw`With random links, a friend’s friend is no more likely to be your friend than anyone else, so \(C\approx T\approx\langle k\rangle/(N-1)\).`
+  };
+  setMath($("cText"), T[t]);
+}
+$("cNet").addEventListener("change", cLoad);
+
+/* ---------- redraw on resize / theme change ---------- */
+function redrawAll(){ readColors(); if (H.net) hDraw(); sDraw(); aDraw(); if (W.t) wDraw(false); wsDraw(); if (CN.g) cView.draw(); }
+let rT = 0;
+new ResizeObserver(() => { clearTimeout(rT); rT = setTimeout(redrawAll, 60); }).observe(document.body);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redrawAll);
+new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (document.fonts) document.fonts.ready.then(redrawAll);
+
+/* ---------- start ---------- */
+hLoad(); tDraw(); bInit(); dDraw(); aDraw(); eDraw(); wsDraw();
+const lazy = [[$("scaling"), sRun], [$("why"), () => wDraw(false)], [$("ws"), wsCurve], [$("clustering"), cLoad]];
+const io = new IntersectionObserver(entries => {
+  entries.forEach(en => { if (!en.isIntersecting) return; const item = lazy.find(l => l[0] === en.target); if (item && !item.done){ item.done = true; item[1](); io.unobserve(en.target); } });
+}, { rootMargin: "200px" });
+lazy.forEach(l => io.observe(l[0]));
+})();
+</script>
+<script>if (window.renderMathInElement) renderMathInElement(document.body, { delimiters: [{ left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }], throwOnError: false, fleqn: true });</script>
+</body>
+</html>
