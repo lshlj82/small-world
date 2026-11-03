@@ -13,7 +13,7 @@
 <style>
 :root{
   --paper:#EDF2F5; --sheet:#F9FBFC; --ink:#1B2A3A; --muted:#566676; --grid:#D2DDE5; --grid-minor:#E3EAF0;
-  --er:#2F8A4C; --sf:#6A3D9E; --hub:#D21F3C; --node:#2C5F8E; --path:#C8700A; --edge:rgba(27,42,58,.22); --focus:#1F6FB2;
+  --er:#267A41; --sf:#6A3D9E; --hub:#D21F3C; --node:#2C5F8E; --path:#A65B00; --edge:rgba(27,42,58,.22); --focus:#1F6FB2;
   --display:"Source Serif 4",Georgia,"Times New Roman",serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   box-sizing:border-box;
@@ -329,7 +329,7 @@ h1.course-title{margin-top:48px !important}
   <h3 style="margin-top:36px">How slow is “very, very slowly”?</h3>
   <p>Any power of \(N\), however small, eventually beats \(\log N\). The crossover can lie unimaginably far out, which is why a logarithm behaves like a constant for every network we will ever see.</p>
   <div class="controls">
-    <label class="ctl"><span>Exponent \(\alpha\) in \(N^\alpha\): <output id="aOut">0.10</output></span>
+    <label class="ctl" for="aIn"><span>Exponent \(\alpha\) in \(N^\alpha\): <output id="aOut">0.10</output></span>
       <input type="range" id="aIn" min="-2" max="-0.3" step="0.05" value="-1"></label>
   </div>
   <div class="sheet">
@@ -377,7 +377,7 @@ h1.course-title{margin-top:48px !important}
   <h2>Watts and Strogatz: a little randomness goes a long way</h2>
   <p>Start from a ring where each node links to its nearest neighbors: lots of local loops, long distances. Now rewire each link, with probability \(p\), to a random node. At \(p = 1\) the network is random: short distances, few loops. Watts and Strogatz (Nature, 1998) found that a tiny \(p\) is enough to collapse the path length while barely touching the clustering, the share of your friends who are friends with each other (defined in the next section). Real networks live in that window: both clustered and small.</p>
   <div class="controls">
-    <label class="ctl"><span>Rewiring probability \(p\): <output id="pOut">0.010</output></span>
+    <label class="ctl" for="pIn"><span>Rewiring probability \(p\): <output id="pOut">0.010</output></span>
       <input type="range" id="pIn" min="-4" max="0" step="0.05" value="-2"></label>
   </div>
   <div class="two">
@@ -404,7 +404,7 @@ h1.course-title{margin-top:48px !important}
   <p class="formula big">\[ C(i) = \frac{\tau(i)}{\tau_\text{max}(i)} = \frac{\tau(i)}{\binom{k_i}{2}} = \frac{2\,\tau(i)}{k_i(k_i-1)} , \]</p>
   <p>defined only when \(k_i > 1\). Click the dashed lines to link or unlink pairs of \(i\)’s friends.</p>
   <div class="controls">
-    <label class="ctl"><span>Number of friends \(k_i\): <output id="eKOut">4</output></span>
+    <label class="ctl" for="eKIn"><span>Number of friends \(k_i\): <output id="eKOut">4</output></span>
       <input type="range" id="eKIn" min="2" max="7" step="1" value="4"></label>
   </div>
   <div class="two">
@@ -1080,7 +1080,14 @@ function wsDraw(){
       { type: "dots", pts: [[p, cur[0]]], color: "hub", r: 7, shape: "diamond" }, { type: "dots", pts: [[p, cur[1]]], color: "hub", r: 7, shape: "diamond" }],
     after: (ctx, X, Y, w, h, pd) => { ctx.strokeStyle = C.hub; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(X(p), pd.t); ctx.lineTo(X(p), h - pd.b); ctx.stroke(); ctx.setLineDash([]); } });
   const nre = WS.g30.rewired.filter(Boolean).length;
-  setMath($("wsText"), String.raw`At \(p = ${p < 0.001 ? p.toExponential(1) : p.toFixed(3)}\), the 1,000-node network keeps ${Math.round(cur[0] * 100)}% of its clustering but only ${Math.round(cur[1] * 100)}% of its path length. ${cur[0] > .7 && cur[1] < .5 ? "This is the small-world window: clustered like a lattice, short like a random network." : cur[1] > .8 ? "Too few shortcuts yet: still a large world." : "Most local triangles are gone: this is close to a random network."} (${nre} of the 40 links on the left ${nre === 1 ? "is" : "are"} rewired.)`);
+  setMath($("wsText"), String.raw`At \(p = ${p < 0.001 ? p.toExponential(1) : p.toFixed(3)}\), the 1,000-node network keeps ${Math.round(cur[0] * 100)}% of its clustering but only ${Math.round(cur[1] * 100)}% of its path length. ${wsVerdict(cur[0], cur[1])} (${nre} of the 40 links on the left ${nre === 1 ? "is" : "are"} rewired.)`);
+}
+// clustering and path length are judged separately, so in-between states are described as such
+function wsVerdict(c, l){
+  if (c > .7 && l < .5) return "This is the small-world window: clustered like a lattice, short like a random network.";
+  const cs = c > .7 ? "Most local triangles survive" : c > .3 ? "Part of the local triangles are gone" : "Most local triangles are gone";
+  const ls = l > .8 ? "too few shortcuts yet, so it is still a large world." : l >= .5 ? "the shortcuts have started to shrink the distances." : "distances are already short, as in a random network.";
+  return cs + ", and " + ls + (c <= .3 && l < .5 ? " This is close to a random network." : "");
 }
 $("pIn").addEventListener("input", wsDraw);
 
